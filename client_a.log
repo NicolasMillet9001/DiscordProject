@@ -1,0 +1,26 @@
+Connected to the chat server
+
+Connected users: [bye]
+
+Enter your username:
+Enter your username: 
+[ClientA]: 
+Welcome ClientA
+[ClientA]: 
+New user connected: ClientB
+[ClientA]: 
+[ClientB]: bye
+[ClientA]: 
+ClientB has quitted.
+[ClientA]: 
+[bye]: 
+New user connected: ClientB
+[bye]: 
+[ClientB]: bye
+[bye]: 
+ClientB has quitted.
+[bye]: 
+[ClientA]: bye
+[bye]: 
+ClientA has quitted.
+[bye]: 

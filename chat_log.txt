@@ -1,0 +1,24 @@
+[2026-01-27 16:53:18] New user connected: ClientA
+[2026-01-27 16:53:18] [ClientA]: Hello world
+[2026-01-27 16:53:18] [ClientA]: bye
+[2026-01-27 16:53:18] ClientA has quitted.
+[2026-01-27 16:53:33] New user connected: ClientA
+[2026-01-27 16:53:33] [ClientA]: NewUser
+[2026-01-27 16:53:33] [ClientA]: Hello
+[2026-01-27 16:53:33] [ClientA]: bye
+[2026-01-27 16:53:33] ClientA has quitted.
+[2026-01-27 16:53:37] New user connected: ClientA
+[2026-01-27 16:53:37] [ClientA]: ClientB
+[2026-01-27 16:53:37] [ClientA]: bye
+[2026-01-27 16:53:37] ClientA has quitted.
+[2026-01-27 16:53:58] New user connected: ClientA
+[2026-01-27 16:53:58] [ClientA]: ClientB
+[2026-01-27 16:53:58] [ClientA]: bye
+[2026-01-27 16:53:58] ClientA has quitted.
+[2026-01-27 16:54:05] New user connected: bye
+[2026-01-27 16:54:11] New user connected: ClientA
+[2026-01-27 16:54:13] New user connected: ClientB
+[2026-01-27 16:54:13] [ClientB]: bye
+[2026-01-27 16:54:13] ClientB has quitted.
+[2026-01-27 16:54:16] [ClientA]: bye
+[2026-01-27 16:54:16] ClientA has quitted.
