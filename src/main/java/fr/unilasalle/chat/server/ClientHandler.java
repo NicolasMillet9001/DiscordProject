@@ -14,6 +14,16 @@ public class ClientHandler extends Thread {
         this.server = server;
     }
 
+    private String channel = "general";
+
+    public String getChannel() {
+        return channel;
+    }
+
+    public void setChannel(String channel) {
+        this.channel = channel;
+    }
+
     public void run() {
         try {
             InputStream input = socket.getInputStream();
@@ -29,12 +39,13 @@ public class ClientHandler extends Thread {
                 writer.println("Enter your username:");
                 userName = reader.readLine();
                 if (userName == null) {
-                    return; // Client disconnected
+                    return;
                 }
 
                 if (server.addUserName(userName)) {
                     this.userName = userName;
-                    writer.println("Welcome " + userName); // Handshake success
+                    writer.println("Welcome " + userName);
+                    writer.println("You are in channel: " + channel);
                     break;
                 } else {
                     writer.println("Error: Username taken or invalid. Try again.");
@@ -42,29 +53,74 @@ public class ClientHandler extends Thread {
             }
 
             String serverMessage = "New user connected: " + userName;
-            server.broadcast(serverMessage, this);
+            server.broadcastToChannel(channel, serverMessage, this);
 
             String clientMessage;
 
             do {
                 clientMessage = reader.readLine();
                 if (clientMessage != null) {
-                    serverMessage = "[" + userName + "]: " + clientMessage;
-                    server.broadcast(serverMessage, this);
+                    if (clientMessage.startsWith("/")) {
+                        handleCommand(clientMessage);
+                    } else {
+                        serverMessage = "[" + userName + "]: " + clientMessage;
+                        server.broadcastToChannel(channel, serverMessage, this);
+                    }
                 } else {
-                    break; // Connection closed
+                    break;
                 }
-            } while (true); // Stay in loop
+            } while (true);
 
             server.removeUser(this, userName);
             socket.close();
 
             serverMessage = userName + " has quitted.";
-            server.broadcast(serverMessage, this);
+            server.broadcastToChannel(channel, serverMessage, this);
 
         } catch (IOException ex) {
-            System.out.println("Error in UserThread: " + ex.getMessage());
+            System.out.println("Error in ClientHandler: " + ex.getMessage());
             ex.printStackTrace();
+        }
+    }
+
+    private void handleCommand(String command) {
+        String[] parts = command.split(" ", 3);
+        String cmd = parts[0].toLowerCase();
+
+        switch (cmd) {
+            case "/msg":
+                if (parts.length < 3) {
+                    sendMessage("Syntax: /msg <user> <message>");
+                } else {
+                    server.sendPrivateMessage(parts[1], parts[2], this);
+                }
+                break;
+            case "/join":
+                if (parts.length < 2) {
+                    sendMessage("Syntax: /join <channel>");
+                } else {
+                    String newChannel = parts[1];
+                    this.channel = newChannel;
+                    sendMessage("You joined channel: " + newChannel);
+                }
+                break;
+            case "/time":
+                sendMessage("Server time: " + java.time.LocalDateTime.now());
+                break;
+            case "/list":
+                sendMessage("Users in " + channel + ": " + server.getUsersInChannel(channel));
+                break;
+            case "/weather":
+                if (parts.length < 2) {
+                    sendMessage("Syntax: /weather <city>");
+                } else {
+                    sendMessage("Fetching weather for " + parts[1] + "...");
+                    sendMessage(WeatherService.getWeather(parts[1]));
+                }
+                break;
+            default:
+                sendMessage("Unknown command: " + cmd);
+                break;
         }
     }
 

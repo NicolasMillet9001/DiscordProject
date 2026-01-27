@@ -1,0 +1,13 @@
+Connected to the chat server
+
+Connected users: [ClientA]
+
+Enter your username:
+Enter your username: 
+[ClientB]: 
+Welcome ClientB
+[ClientB]: 
+You are in channel: general
+[ClientB]: 
+[Private from ClientA]: ThisIsPrivate
+[ClientB]: 

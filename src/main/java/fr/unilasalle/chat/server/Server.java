@@ -48,12 +48,45 @@ public class Server {
      * Delivers a message from one user to others (broadcasting)
      */
     void broadcast(String message, ClientHandler excludeUser) {
-        Logger.log(message); // Log every broadcast message
+        Logger.log(message);
         for (ClientHandler aUser : userThreads) {
             if (aUser != excludeUser) {
                 aUser.sendMessage(message);
             }
         }
+    }
+
+    void broadcastToChannel(String channel, String message, ClientHandler sender) {
+        Logger.log("[" + channel + "] " + message);
+        for (ClientHandler user : userThreads) {
+            if (user != sender && user.getChannel().equalsIgnoreCase(channel)) {
+                user.sendMessage(message);
+            }
+        }
+    }
+
+    void sendPrivateMessage(String targetUserName, String message, ClientHandler sender) {
+        for (ClientHandler user : userThreads) {
+            if (user.getUserName().equalsIgnoreCase(targetUserName)) {
+                user.sendMessage("[Private from " + sender.getUserName() + "]: " + message);
+                sender.sendMessage("[Private to " + targetUserName + "]: " + message);
+                return;
+            }
+        }
+        sender.sendMessage("User " + targetUserName + " not found.");
+    }
+
+    String getUsersInChannel(String channel) {
+        StringBuilder sb = new StringBuilder();
+        for (ClientHandler user : userThreads) {
+            if (user.getChannel().equalsIgnoreCase(channel)) {
+                sb.append(user.getUserName()).append(", ");
+            }
+        }
+        if (sb.length() > 0) {
+            sb.setLength(sb.length() - 2);
+        }
+        return sb.toString();
     }
 
     /**

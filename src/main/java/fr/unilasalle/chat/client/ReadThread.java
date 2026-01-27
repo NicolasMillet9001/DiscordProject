@@ -29,23 +29,27 @@ public class ReadThread extends Thread {
             try {
                 String response = reader.readLine();
                 if (response == null) {
-                    System.out.println("\nServer connection was closed");
+                    if (client.getListener() != null)
+                        client.getListener().onMessageReceived("Server connection was closed");
                     break;
                 }
-                System.out.println("\n" + response); // Print new line for better formatting with prompt
+
+                if (client.getListener() != null) {
+                    client.getListener().onMessageReceived(response);
+                }
 
                 // Reprint the prompt (visual polish) check handled in WriteThread
-                if (client.getUserName() != null) {
-                    System.out.print("[" + client.getUserName() + "]: ");
-                }
+                // Prompt handling is tricky with GUI vs Console.
+                // For GUI, we don't need to reprint prompt.
+                // For Console, we might lose this feature or move it to ConsoleListener.
+                // Let's rely on simple message passing for now.
 
             } catch (IOException ex) {
                 if (socket.isClosed()) {
-                    // Socket closed by WriteThread on exit, expected behavior
                     break;
                 }
-                System.out.println("Error reading from server: " + ex.getMessage());
-                ex.printStackTrace();
+                if (client.getListener() != null)
+                    client.getListener().onMessageReceived("Error reading from server: " + ex.getMessage());
                 break;
             }
         }

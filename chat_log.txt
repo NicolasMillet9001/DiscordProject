@@ -22,3 +22,40 @@
 [2026-01-27 16:54:13] ClientB has quitted.
 [2026-01-27 16:54:16] [ClientA]: bye
 [2026-01-27 16:54:16] ClientA has quitted.
+[2026-01-27 17:06:00] [general] New user connected: User1
+[2026-01-27 17:06:01] [room1] [User1]: bye
+[2026-01-27 17:06:01] [room1] User1 has quitted.
+[2026-01-27 17:06:40] [general] New user connected: ClientA
+[2026-01-27 17:06:41] [general] New user connected: ClientB
+[2026-01-27 17:06:43] [room1] [ClientA]: MessageToRoom1
+[2026-01-27 17:06:46] [general] [ClientB]: bye
+[2026-01-27 17:06:46] [general] ClientB has quitted.
+[2026-01-27 17:06:49] [room1] [ClientA]: bye
+[2026-01-27 17:06:49] [room1] ClientA has quitted.
+[2026-01-27 17:09:00] [general] New user connected: MeteoFan
+[2026-01-27 17:09:13] [general] [MeteoFan]: bye
+[2026-01-27 17:21:57] [general] New user connected: Jeomin
+[2026-01-27 17:22:05] [general] [Jeomin]: ok`
+[2026-01-27 17:22:05] [general] [Jeomin]: `
+[2026-01-27 17:22:12] [general] [Jeomin]: K
+[2026-01-27 17:22:14] [general] [Jeomin]: OK
+[2026-01-27 17:22:32] [general] Jeomin has quitted.
+[2026-01-27 17:22:40] [general] New user connected: Jeomin
+[2026-01-27 17:24:25] [general] Jeomin has quitted.
+[2026-01-27 17:24:29] [general] New user connected: Jeomin
+[2026-01-27 17:24:34] [general] [Jeomin]: Hello
+[2026-01-27 17:24:39] [room1] [Jeomin]: ZFZes`
+[2026-01-27 17:24:41] [room1] [Jeomin]: `Incroyable
+[2026-01-27 17:24:48] [random] [Jeomin]: Hello
+[2026-01-27 17:24:50] [random] Jeomin has quitted.
+[2026-01-27 17:27:16] [general] New user connected: Jeomin
+[2026-01-27 17:27:20] [general] [Jeomin]: SVD
+[2026-01-27 17:27:24] [room1] [Jeomin]: Hello room
+[2026-01-27 17:30:41] [general] Jeomin has quitted.
+[2026-01-27 17:30:48] [general] New user connected: Jeomin
+[2026-01-27 17:30:55] [room1] [Jeomin]: Hello
+[2026-01-27 17:31:00] [random] [Jeomin]: Salut
+[2026-01-27 17:31:07] [general] [Jeomin]: hello all
+[2026-01-27 17:31:11] [random] Jeomin has quitted.
+[2026-01-27 17:35:27] [general] New user connected: Jeomin
+[2026-01-27 17:35:35] [general] Jeomin has quitted.
