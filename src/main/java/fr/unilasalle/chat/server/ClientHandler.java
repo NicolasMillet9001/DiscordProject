@@ -72,16 +72,19 @@ public class ClientHandler extends Thread {
                 }
             } while (true);
 
-            server.removeUser(this, userName);
-            socket.close();
-
-            serverMessage = "LOG:" + userName + " has quitted.";
-            server.broadcast(serverMessage, this);
-            server.broadcastUserList(channel); // Update list on leave
-
         } catch (IOException ex) {
             System.out.println("Error in ClientHandler: " + ex.getMessage());
-            ex.printStackTrace();
+        } finally {
+            try {
+                server.removeUser(this, userName);
+                socket.close();
+
+                String serverMessage = "LOG:" + userName + " has quitted.";
+                server.broadcast(serverMessage, this);
+                server.broadcastUserList(channel); // Update list on leave
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 

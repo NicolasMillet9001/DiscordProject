@@ -182,6 +182,17 @@ public class ChatGUI extends JFrame implements MessageListener {
         SimpleAttributeSet style = new SimpleAttributeSet();
         StyleConstants.setForeground(style, c);
 
+        // Add Timestamp
+        String time = "[" + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))
+                + "] ";
+        try {
+            SimpleAttributeSet timeStyle = new SimpleAttributeSet();
+            StyleConstants.setForeground(timeStyle, DiscordTheme.TEXT_MUTED);
+            StyleConstants.setFontSize(timeStyle, 12);
+            doc.insertString(doc.getLength(), time, timeStyle);
+        } catch (Exception e) {
+        }
+
         try {
             // Check for Username pattern: [User]: Message
             if (msg.startsWith("[") && msg.contains("]: ")) {
@@ -245,6 +256,9 @@ public class ChatGUI extends JFrame implements MessageListener {
                 String logContent = message.substring(4);
                 if (logContent.startsWith("You are in channel:"))
                     return;
+                if (logContent.startsWith("You joined channel:"))
+                    return;
+
                 appendToChat(logContent, DiscordTheme.TEXT_MUTED);
                 return;
             }
