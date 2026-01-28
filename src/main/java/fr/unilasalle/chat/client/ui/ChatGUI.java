@@ -19,6 +19,7 @@ public class ChatGUI extends JFrame implements MessageListener {
     private JTextField inputField;
     private DefaultListModel<String> userListModel;
     private DefaultListModel<String> channelListModel;
+    private JList<String> channelList;
 
     // History storage
     private Map<String, StyledDocument> channelDocs = new HashMap<>();
@@ -57,17 +58,30 @@ public class ChatGUI extends JFrame implements MessageListener {
         sidebar.setBackground(DiscordTheme.SIDEBAR);
         sidebar.setPreferredSize(new Dimension(200, 0));
 
+        JPanel titlePanel = new JPanel(new BorderLayout());
+        titlePanel.setBackground(DiscordTheme.SIDEBAR);
+        
         JLabel title = new JLabel("CHANNELS");
         title.setForeground(DiscordTheme.TEXT_MUTED);
         title.setBorder(new EmptyBorder(10, 10, 10, 10));
-        sidebar.add(title, BorderLayout.NORTH);
+        titlePanel.add(title, BorderLayout.CENTER);
+
+        JButton addBtn = new JButton("+");
+        addBtn.setForeground(DiscordTheme.TEXT_MUTED);
+        addBtn.setBackground(DiscordTheme.SIDEBAR);
+        addBtn.setBorder(new EmptyBorder(10, 10, 10, 10));
+        addBtn.setFocusPainted(false);
+        addBtn.setContentAreaFilled(false);
+        addBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        addBtn.addActionListener(e -> promptCreateChannel());
+        titlePanel.add(addBtn, BorderLayout.EAST);
+        
+        sidebar.add(titlePanel, BorderLayout.NORTH);
 
         channelListModel = new DefaultListModel<>();
-        channelListModel.addElement("#general");
-        channelListModel.addElement("#room1");
-        channelListModel.addElement("#random");
+        // Channels will be populated by server
 
-        JList<String> channelList = new JList<>(channelListModel);
+        channelList = new JList<>(channelListModel);
         channelList.setBackground(DiscordTheme.SIDEBAR);
         channelList.setForeground(DiscordTheme.TEXT_NORMAL);
         channelList.setSelectionBackground(DiscordTheme.ACTION_BG); // Assuming undefined, fixed below
@@ -106,6 +120,14 @@ public class ChatGUI extends JFrame implements MessageListener {
         chatArea.setDocument(doc);
         // appendToChat("Switched to #" + newChannel, Color.GRAY); // User requested to
         // hide this
+    }
+
+    private void promptCreateChannel() {
+        String name = JOptionPane.showInputDialog(this, "Enter channel name:", "Create Channel", JOptionPane.PLAIN_MESSAGE);
+        if (name != null && !name.trim().isEmpty()) {
+            name = name.trim().replace("#", "").replace(" ", "_"); // Sanitize
+            client.sendMessage("/join " + name);
+        }
     }
 
     private void createChatArea() {
@@ -246,8 +268,26 @@ public class ChatGUI extends JFrame implements MessageListener {
                         userListModel.addElement(u);
                 }
                 return;
-            } else if (message.startsWith("USERLIST")) {
                 // Ignore lists for other channels
+                return;
+            }
+            
+            // Handle Channel List updates
+            if (message.startsWith("CHANNELLIST ")) {
+                String channels = message.substring("CHANNELLIST ".length());
+                channelListModel.clear();
+                for (String c : channels.split(",")) {
+                    if (!c.isEmpty())
+                        channelListModel.addElement("#" + c);
+                }
+                
+                // Restore selection
+                if (channelList != null && currentChannel != null) {
+                    int index = channelListModel.indexOf("#" + currentChannel);
+                    if (index != -1) {
+                         channelList.setSelectedIndex(index);
+                    }
+                }
                 return;
             }
 

@@ -46,6 +46,7 @@ public class ClientHandler extends Thread {
                     this.userName = userName;
                     writer.println("Welcome " + userName);
                     writer.println("You are in channel: " + channel);
+                    writer.println("CHANNELLIST " + server.getChannelList());
                     server.broadcastUserList(channel); // Update list for everyone in default channel
                     break;
                 } else {
@@ -106,6 +107,7 @@ public class ClientHandler extends Thread {
                 } else {
                     String oldChannel = this.channel;
                     String newChannel = parts[1];
+                    server.checkAndAddChannel(newChannel);
                     this.channel = newChannel;
                     sendMessage("LOG:You joined channel: " + newChannel);
 

@@ -10,9 +10,13 @@ import java.util.Set;
 public class Server {
     private int port;
     private Set<ClientHandler> userThreads = ConcurrentHashMap.newKeySet();
+    private Set<String> knownChannels = ConcurrentHashMap.newKeySet();
 
     public Server(int port) {
         this.port = port;
+        knownChannels.add("general");
+        knownChannels.add("room1");
+        knownChannels.add("random");
     }
 
     public void execute() {
@@ -94,6 +98,23 @@ public class Server {
         String users = getUsersInChannel(channel);
         String message = "USERLIST " + channel + " " + users;
         broadcastToChannel(channel, message, null); // null sender means system message
+    }
+
+    void broadcastChannelList() {
+        String channels = String.join(",", knownChannels);
+        String message = "CHANNELLIST " + channels;
+        broadcast(message, null);
+    }
+    
+    public void checkAndAddChannel(String channelName) {
+        if (!knownChannels.contains(channelName)) {
+            knownChannels.add(channelName);
+            broadcastChannelList(); 
+        }
+    }
+
+    public String getChannelList() {
+        return String.join(",", knownChannels);
     }
 
     /**
