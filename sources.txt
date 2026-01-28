@@ -1,0 +1,12 @@
+src/main/java/fr/unilasalle/chat/server/Logger.java
+src/main/java/fr/unilasalle/chat/server/ClientHandler.java
+src/main/java/fr/unilasalle/chat/server/Server.java
+src/main/java/fr/unilasalle/chat/server/WeatherService.java
+src/main/java/fr/unilasalle/chat/client/ui/LoginDialog.java
+src/main/java/fr/unilasalle/chat/client/ui/ModernScrollBarUI.java
+src/main/java/fr/unilasalle/chat/client/ui/DiscordTheme.java
+src/main/java/fr/unilasalle/chat/client/ui/ChatGUI.java
+src/main/java/fr/unilasalle/chat/client/Client.java
+src/main/java/fr/unilasalle/chat/client/WriteThread.java
+src/main/java/fr/unilasalle/chat/client/MessageListener.java
+src/main/java/fr/unilasalle/chat/client/ReadThread.java

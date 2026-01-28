@@ -121,6 +121,8 @@ public class ChatGUI extends JFrame implements MessageListener {
 
         JScrollPane scrollPane = new JScrollPane(chatArea);
         scrollPane.setBorder(null);
+        scrollPane.getVerticalScrollBar().setUI(new ModernScrollBarUI());
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         chatPanel.add(scrollPane, BorderLayout.CENTER);
 
         JPanel inputPanel = new JPanel(new BorderLayout());
@@ -167,7 +169,7 @@ public class ChatGUI extends JFrame implements MessageListener {
             // Optimistic rendering: Show my own message immediately
             // But don't show commands like /join as chat messages
             if (!text.startsWith("/")) {
-                appendToChat("[" + username + "]: " + text, DiscordTheme.TEXT_NORMAL);
+                appendToChat("[" + username + "]: " + text, getUniqueColor(username));
             }
             inputField.setText("");
         }
@@ -187,8 +189,11 @@ public class ChatGUI extends JFrame implements MessageListener {
                 String userPart = msg.substring(0, splitIndex);
                 String contentPart = msg.substring(splitIndex);
 
-                // Color for Username (Gold/Yellow for visibility)
-                StyleConstants.setForeground(style, new Color(255, 215, 0));
+                // Parse username from "[Name]: " to gen color
+                String msgUser = userPart.substring(1, userPart.length() - 3);
+
+                // Color for Username
+                StyleConstants.setForeground(style, getUniqueColor(msgUser));
                 StyleConstants.setBold(style, true);
                 doc.insertString(doc.getLength(), userPart, style);
 
@@ -205,6 +210,12 @@ public class ChatGUI extends JFrame implements MessageListener {
         }
     }
 
+    private Color getUniqueColor(String name) {
+        int hash = name.hashCode();
+        // Generate bright pastel colors
+        return Color.getHSBColor((Math.abs(hash) % 360) / 360f, 0.7f, 1.0f);
+    }
+
     @Override
     public void onMessageReceived(String message) {
         SwingUtilities.invokeLater(() -> {
@@ -215,17 +226,26 @@ public class ChatGUI extends JFrame implements MessageListener {
                 return;
             }
 
+            // Handle User List updates: "USERLIST <channel> user1,user2,user3"
+            if (message.startsWith("USERLIST " + currentChannel + " ")) {
+                String users = message.substring(("USERLIST " + currentChannel + " ").length());
+                userListModel.clear();
+                for (String u : users.split(",")) {
+                    if (!u.isEmpty())
+                        userListModel.addElement(u);
+                }
+                return;
+            } else if (message.startsWith("USERLIST")) {
+                // Ignore lists for other channels
+                return;
+            }
+
             // Filter out system logs as requested
             if (message.startsWith("You joined channel:") || message.startsWith("You are in channel:")) {
                 return;
             }
 
             appendToChat(message, DiscordTheme.TEXT_NORMAL);
-
-            // Simple parsing for user list (dirty hack)
-            if (message.startsWith("Users in")) {
-                // Update member list logic could go here
-            }
         });
     }
 

@@ -80,13 +80,19 @@ public class Server {
         StringBuilder sb = new StringBuilder();
         for (ClientHandler user : userThreads) {
             if (user.getChannel().equalsIgnoreCase(channel)) {
-                sb.append(user.getUserName()).append(", ");
+                sb.append(user.getUserName()).append(",");
             }
         }
         if (sb.length() > 0) {
-            sb.setLength(sb.length() - 2);
+            sb.setLength(sb.length() - 1); // remove last comma
         }
         return sb.toString();
+    }
+
+    void broadcastUserList(String channel) {
+        String users = getUsersInChannel(channel);
+        String message = "USERLIST " + channel + " " + users;
+        broadcastToChannel(channel, message, null); // null sender means system message
     }
 
     /**

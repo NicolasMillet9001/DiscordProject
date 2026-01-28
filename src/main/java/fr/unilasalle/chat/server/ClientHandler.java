@@ -46,6 +46,7 @@ public class ClientHandler extends Thread {
                     this.userName = userName;
                     writer.println("Welcome " + userName);
                     writer.println("You are in channel: " + channel);
+                    server.broadcastUserList(channel); // Update list for everyone in default channel
                     break;
                 } else {
                     writer.println("Error: Username taken or invalid. Try again.");
@@ -53,7 +54,7 @@ public class ClientHandler extends Thread {
             }
 
             String serverMessage = "New user connected: " + userName;
-            server.broadcastToChannel(channel, serverMessage, this);
+            server.broadcast(serverMessage, this);
 
             String clientMessage;
 
@@ -75,7 +76,8 @@ public class ClientHandler extends Thread {
             socket.close();
 
             serverMessage = userName + " has quitted.";
-            server.broadcastToChannel(channel, serverMessage, this);
+            server.broadcast(serverMessage, this);
+            server.broadcastUserList(channel); // Update list on leave
 
         } catch (IOException ex) {
             System.out.println("Error in ClientHandler: " + ex.getMessage());
@@ -99,9 +101,13 @@ public class ClientHandler extends Thread {
                 if (parts.length < 2) {
                     sendMessage("Syntax: /join <channel>");
                 } else {
+                    String oldChannel = this.channel;
                     String newChannel = parts[1];
                     this.channel = newChannel;
                     sendMessage("You joined channel: " + newChannel);
+
+                    server.broadcastUserList(oldChannel); // Remove from old
+                    server.broadcastUserList(newChannel); // Add to new
                 }
                 break;
             case "/time":
