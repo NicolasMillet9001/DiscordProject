@@ -8,7 +8,9 @@ public class LoginDialog extends JDialog {
     private JTextField usernameField;
     private JTextField ipField;
     private JTextField portField;
+    private JPasswordField passwordField;
     private boolean succeeded = false;
+    private boolean registerMode = false;
 
     public LoginDialog(Frame parent) {
         super(parent, "Connect to Server", true);
@@ -34,18 +36,33 @@ public class LoginDialog extends JDialog {
         cs.gridwidth = 2;
         panel.add(usernameField, cs);
 
+        // --- Password ---
+        JLabel passLabel = new JLabel("Password:");
+        passLabel.setForeground(DiscordTheme.TEXT_NORMAL);
+        cs.gridx = 0;
+        cs.gridy = 1;
+        cs.gridwidth = 1;
+        panel.add(passLabel, cs);
+
+        passwordField = new JPasswordField(20);
+        styleTextField(passwordField);
+        cs.gridx = 1;
+        cs.gridy = 1;
+        cs.gridwidth = 2;
+        panel.add(passwordField, cs);
+
         // --- Server IP ---
         JLabel ipLabel = new JLabel("Server IP:");
         ipLabel.setForeground(DiscordTheme.TEXT_NORMAL);
         cs.gridx = 0;
-        cs.gridy = 1;
+        cs.gridy = 2;
         cs.gridwidth = 1;
         panel.add(ipLabel, cs);
 
         ipField = new JTextField("172.21.200.34", 20);
         styleTextField(ipField);
         cs.gridx = 1;
-        cs.gridy = 1;
+        cs.gridy = 2;
         cs.gridwidth = 2;
         panel.add(ipField, cs);
 
@@ -53,30 +70,38 @@ public class LoginDialog extends JDialog {
         JLabel portLabel = new JLabel("Port:");
         portLabel.setForeground(DiscordTheme.TEXT_NORMAL);
         cs.gridx = 0;
-        cs.gridy = 2;
+        cs.gridy = 3;
         cs.gridwidth = 1;
         panel.add(portLabel, cs);
 
         portField = new JTextField("5001", 10);
         styleTextField(portField);
         cs.gridx = 1;
-        cs.gridy = 2;
+        cs.gridy = 3;
         cs.gridwidth = 2;
         panel.add(portField, cs);
 
         // --- Buttons ---
-        JButton btnLogin = new JButton("Connect");
+        JButton btnLogin = new JButton("Login");
         styleButton(btnLogin, DiscordTheme.ACTION_BG);
+
+        JButton btnRegister = new JButton("Register");
+        styleButton(btnRegister, DiscordTheme.HIGHLIGHT);
+
         btnLogin.addActionListener(e -> {
-            if (getUsername().isEmpty()) {
-                JOptionPane.showMessageDialog(LoginDialog.this,
-                        "Username is required.",
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE);
-                return;
+            if (validateInput()) {
+                registerMode = false;
+                succeeded = true;
+                dispose();
             }
-            succeeded = true;
-            dispose();
+        });
+
+        btnRegister.addActionListener(e -> {
+            if (validateInput()) {
+                registerMode = true;
+                succeeded = true;
+                dispose();
+            }
         });
 
         JButton btnCancel = new JButton("Cancel");
@@ -86,6 +111,7 @@ public class LoginDialog extends JDialog {
         JPanel bp = new JPanel();
         bp.setBackground(DiscordTheme.BACKGROUND);
         bp.add(btnLogin);
+        bp.add(btnRegister);
         bp.add(btnCancel);
 
         getContentPane().add(panel, BorderLayout.CENTER);
@@ -94,6 +120,17 @@ public class LoginDialog extends JDialog {
         pack();
         setResizable(false);
         setLocationRelativeTo(parent);
+    }
+
+    private boolean validateInput() {
+        if (getUsername().isEmpty() || getPassword().isEmpty()) {
+            JOptionPane.showMessageDialog(LoginDialog.this,
+                    "Username and Password are required.",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        return true;
     }
 
     private void styleTextField(JTextField tf) {
@@ -118,6 +155,10 @@ public class LoginDialog extends JDialog {
         return usernameField.getText().trim();
     }
 
+    public String getPassword() {
+        return new String(passwordField.getPassword());
+    }
+
     public String getIP() {
         return ipField.getText().trim();
     }
@@ -132,5 +173,9 @@ public class LoginDialog extends JDialog {
 
     public boolean isSucceeded() {
         return succeeded;
+    }
+
+    public boolean isRegisterMode() {
+        return registerMode;
     }
 }

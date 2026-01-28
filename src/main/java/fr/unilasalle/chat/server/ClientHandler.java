@@ -35,26 +35,53 @@ public class ClientHandler extends Thread {
             printUsers();
 
             String userName;
-            while (true) {
-                writer.println("Enter your username:");
-                userName = reader.readLine();
-                if (userName == null) {
-                    return;
-                }
+            String prompt = "AUTH_REQUIRED"; // Use strict protocol keyword
+            writer.println(prompt);
 
-                if (server.addUserName(userName)) {
-                    this.userName = userName;
-                    writer.println("Welcome " + userName);
-                    writer.println("You are in channel: " + channel);
-                    writer.println("CHANNELLIST " + server.getChannelList());
-                    server.broadcastUserList(channel); // Update list for everyone in default channel
-                    break;
+            while (true) {
+                String authLine = reader.readLine();
+                if (authLine == null)
+                    return;
+
+                String[] parts = authLine.split(" ", 3);
+                String command = parts[0].toLowerCase();
+
+                if (command.equals("/register") && parts.length == 3) {
+                    if (server.getDbService().register(parts[1], parts[2])) {
+                        writer.println("REGISTRATION_SUCCESS");
+                    } else {
+                        writer.println("REGISTRATION_FAIL");
+                    }
+                } else if (command.equals("/login") && parts.length == 3) {
+                    if (server.getDbService().authenticate(parts[1], parts[2])) {
+                        // Check if already online
+                        if (server.addUserName(parts[1])) {
+                            this.userName = parts[1];
+                            writer.println("LOGIN_SUCCESS " + this.userName);
+                            writer.println("Welcome " + this.userName);
+                            writer.println("You are in channel: " + channel);
+
+                            // Send History
+                            java.util.List<String> history = server.getDbService().getHistory(channel, 50);
+                            for (String msg : history) {
+                                // Protocol: CHANMSG channel content
+                                writer.println("CHANMSG " + channel + " " + msg);
+                            }
+
+                            server.broadcastUserList(channel);
+                            break;
+                        } else {
+                            writer.println("LOGIN_FAIL_ALREADY_CONNECTED");
+                        }
+                    } else {
+                        writer.println("LOGIN_FAIL_INVALID");
+                    }
                 } else {
-                    writer.println("Error: Username taken or invalid. Try again.");
+                    writer.println("UNKNOWN_AUTH_COMMAND");
                 }
             }
 
-            String serverMessage = "LOG:New user connected: " + userName;
+            String serverMessage = "LOG:New user connected: " + this.userName;
             server.broadcast(serverMessage, this);
 
             String clientMessage;
@@ -65,7 +92,7 @@ public class ClientHandler extends Thread {
                     if (clientMessage.startsWith("/")) {
                         handleCommand(clientMessage);
                     } else {
-                        serverMessage = "[" + userName + "]: " + clientMessage;
+                        serverMessage = "[" + this.userName + "]: " + clientMessage;
                         server.broadcastToChannel(channel, serverMessage, this);
                     }
                 } else {
@@ -111,11 +138,19 @@ public class ClientHandler extends Thread {
                     this.channel = newChannel;
 
                     // Broadcast to ALL users (null sender) so everyone sees the event history
-                    server.broadcastToChannel(oldChannel, "LOG:" + userName + " has left " + oldChannel, null);
-                    server.broadcastToChannel(newChannel, "LOG:" + userName + " has joined " + newChannel, null);
+                    // server.broadcastToChannel(oldChannel, "LOG:" + userName + " has left " +
+                    // oldChannel, null);
+                    // server.broadcastToChannel(newChannel, "LOG:" + userName + " has joined " +
+                    // newChannel, null);
 
                     server.broadcastUserList(oldChannel); // Remove from old
                     server.broadcastUserList(newChannel); // Add to new
+
+                    // Send History of new channel
+                    java.util.List<String> history = server.getDbService().getHistory(newChannel, 50);
+                    for (String msg : history) {
+                        writer.println("CHANMSG " + newChannel + " " + msg);
+                    }
                 }
                 break;
             case "/time":
