@@ -107,10 +107,10 @@ public class ClientHandler extends Thread {
                     String oldChannel = this.channel;
                     String newChannel = parts[1];
                     this.channel = newChannel;
-                    sendMessage("LOG:You joined channel: " + newChannel);
 
-                    server.broadcastToChannel(oldChannel, "LOG:" + userName + " has left " + oldChannel, this);
-                    server.broadcastToChannel(newChannel, "LOG:" + userName + " has joined " + newChannel, this);
+                    // Broadcast to ALL users (null sender) so everyone sees the event history
+                    server.broadcastToChannel(oldChannel, "LOG:" + userName + " has left " + oldChannel, null);
+                    server.broadcastToChannel(newChannel, "LOG:" + userName + " has joined " + newChannel, null);
 
                     server.broadcastUserList(oldChannel); // Remove from old
                     server.broadcastUserList(newChannel); // Add to new

@@ -59,9 +59,11 @@ public class Server {
 
     void broadcastToChannel(String channel, String message, ClientHandler sender) {
         Logger.log("[" + channel + "] " + message);
+        String taggedMessage = "CHANMSG " + channel + " " + message;
         for (ClientHandler user : userThreads) {
-            if (user != sender && user.getChannel().equalsIgnoreCase(channel)) {
-                user.sendMessage(message);
+            if (user != sender) {
+                // Send to ALL connected users so they can update their background history
+                user.sendMessage(taggedMessage);
             }
         }
     }
