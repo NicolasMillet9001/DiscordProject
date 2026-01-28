@@ -240,6 +240,15 @@ public class ChatGUI extends JFrame implements MessageListener {
                 return;
             }
 
+            // Handle LOG messages (Discrete color, e.g. for joins/leaves/channels)
+            if (message.startsWith("LOG:")) {
+                String logContent = message.substring(4);
+                if (logContent.startsWith("You are in channel:"))
+                    return;
+                appendToChat(logContent, DiscordTheme.TEXT_MUTED);
+                return;
+            }
+
             // Filter out system logs as requested
             if (message.startsWith("You joined channel:") || message.startsWith("You are in channel:")) {
                 return;

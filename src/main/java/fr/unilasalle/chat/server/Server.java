@@ -1,5 +1,6 @@
 package fr.unilasalle.chat.server;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -8,7 +9,7 @@ import java.util.Set;
 
 public class Server {
     private int port;
-    private Set<ClientHandler> userThreads = new HashSet<>();
+    private Set<ClientHandler> userThreads = ConcurrentHashMap.newKeySet();
 
     public Server(int port) {
         this.port = port;

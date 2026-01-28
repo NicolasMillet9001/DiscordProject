@@ -53,7 +53,7 @@ public class ClientHandler extends Thread {
                 }
             }
 
-            String serverMessage = "New user connected: " + userName;
+            String serverMessage = "LOG:New user connected: " + userName;
             server.broadcast(serverMessage, this);
 
             String clientMessage;
@@ -75,7 +75,7 @@ public class ClientHandler extends Thread {
             server.removeUser(this, userName);
             socket.close();
 
-            serverMessage = userName + " has quitted.";
+            serverMessage = "LOG:" + userName + " has quitted.";
             server.broadcast(serverMessage, this);
             server.broadcastUserList(channel); // Update list on leave
 
@@ -104,7 +104,10 @@ public class ClientHandler extends Thread {
                     String oldChannel = this.channel;
                     String newChannel = parts[1];
                     this.channel = newChannel;
-                    sendMessage("You joined channel: " + newChannel);
+                    sendMessage("LOG:You joined channel: " + newChannel);
+
+                    server.broadcastToChannel(oldChannel, "LOG:" + userName + " has left " + oldChannel, this);
+                    server.broadcastToChannel(newChannel, "LOG:" + userName + " has joined " + newChannel, this);
 
                     server.broadcastUserList(oldChannel); // Remove from old
                     server.broadcastUserList(newChannel); // Add to new
