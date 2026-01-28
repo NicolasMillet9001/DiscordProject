@@ -126,7 +126,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         String name = JOptionPane.showInputDialog(this, "Enter channel name:", "Create Channel", JOptionPane.PLAIN_MESSAGE);
         if (name != null && !name.trim().isEmpty()) {
             name = name.trim().replace("#", "").replace(" ", "_"); // Sanitize
-            client.sendMessage("/join " + name);
+            switchChannel(name);
         }
     }
 
@@ -267,8 +267,6 @@ public class ChatGUI extends JFrame implements MessageListener {
                     if (!u.isEmpty())
                         userListModel.addElement(u);
                 }
-                return;
-                // Ignore lists for other channels
                 return;
             }
             
