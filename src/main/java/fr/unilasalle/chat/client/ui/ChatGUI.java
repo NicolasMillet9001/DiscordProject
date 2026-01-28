@@ -259,7 +259,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                 return;
             }
 
-            // Handle User List updates: "USERLIST <channel> user1,user2,user3"
+            // Handle User List updates
             if (message.startsWith("USERLIST " + currentChannel + " ")) {
                 String users = message.substring(("USERLIST " + currentChannel + " ").length());
                 userListModel.clear();
@@ -291,25 +291,114 @@ public class ChatGUI extends JFrame implements MessageListener {
                 return;
             }
 
-            // Handle LOG messages (Discrete color, e.g. for joins/leaves/channels)
+            // Handle Channel Messages (CHANMSG <channel> <content>)
+            if (message.startsWith("CHANMSG ")) {
+                String[] parts = message.split(" ", 3);
+                if (parts.length >= 3) {
+                    String targetChannel = parts[1];
+                    String content = parts[2];
+
+                    // Fix: Check for USERLIST inside CHANMSG
+                    if (content.startsWith("USERLIST ")) {
+                        // Only update UI if it's for the current channel
+                        if (targetChannel.equals(currentChannel)) {
+                            String users = content.substring("USERLIST ".length()); // "general user1,user2" ? No,
+                                                                                    // content is "USERLIST general
+                                                                                    // user1,user2" presumably?
+                            // Wait, Server sends: "USERLIST " + channel + " " + users
+                            // So content is "USERLIST channel users..."
+                            // Let's parse strictly.
+                            String prefix = "USERLIST " + targetChannel + " ";
+                            if (content.startsWith(prefix)) {
+                                String userString = content.substring(prefix.length());
+                                userListModel.clear();
+                                for (String u : userString.split(",")) {
+                                    if (!u.isEmpty())
+                                        userListModel.addElement(u);
+                                }
+                            }
+                        }
+                        return; // Do NOT show in chat
+                    }
+
+                    // Ensure doc exists
+                    if (!channelDocs.containsKey(targetChannel)) {
+                        channelDocs.put(targetChannel, new DefaultStyledDocument());
+                    }
+
+                    appendMessageToDoc(targetChannel, content);
+                }
+                return;
+            }
+
+            // Global System Messages (LOG:)
             if (message.startsWith("LOG:")) {
                 String logContent = message.substring(4);
                 if (logContent.startsWith("You are in channel:"))
                     return;
                 if (logContent.startsWith("You joined channel:"))
                     return;
-
                 appendToChat(logContent, DiscordTheme.TEXT_MUTED);
                 return;
             }
 
-            // Filter out system logs as requested
-            if (message.startsWith("You joined channel:") || message.startsWith("You are in channel:")) {
-                return;
-            }
-
+            // Other global messages
             appendToChat(message, DiscordTheme.TEXT_NORMAL);
         });
+    }
+
+    // Refactored helper to append to SPECIFIC channel document
+    private void appendMessageToDoc(String channel, String msg) {
+        StyledDocument doc = channelDocs.get(channel);
+        if (doc == null)
+            return; // Should created above
+
+        SimpleAttributeSet style = new SimpleAttributeSet();
+
+        // Add Timestamp
+        String time = "[" + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))
+                + "] ";
+        try {
+            SimpleAttributeSet timeStyle = new SimpleAttributeSet();
+            StyleConstants.setForeground(timeStyle, DiscordTheme.TEXT_MUTED);
+            StyleConstants.setFontSize(timeStyle, 12);
+            doc.insertString(doc.getLength(), time, timeStyle);
+        } catch (Exception e) {
+        }
+
+        // Check for internal LOG inside CHANMSG (e.g. joins/leaves in that channel)
+        if (msg.startsWith("LOG:")) {
+            String logContent = msg.substring(4);
+            StyleConstants.setForeground(style, DiscordTheme.TEXT_MUTED);
+            try {
+                doc.insertString(doc.getLength(), logContent + "\n", style);
+            } catch (Exception e) {
+            }
+            return;
+        }
+
+        try {
+            if (msg.startsWith("[") && msg.contains("]: ")) {
+                int splitIndex = msg.indexOf("]: ") + 3;
+                String userPart = msg.substring(0, splitIndex);
+                String contentPart = msg.substring(splitIndex);
+
+                String msgUser = userPart.substring(1, userPart.length() - 3);
+
+                StyleConstants.setForeground(style, getUniqueColor(msgUser));
+                StyleConstants.setBold(style, true);
+                doc.insertString(doc.getLength(), userPart, style);
+
+                StyleConstants.setForeground(style, DiscordTheme.TEXT_NORMAL);
+                StyleConstants.setBold(style, false);
+                doc.insertString(doc.getLength(), contentPart + "\n", style);
+            } else {
+                StyleConstants.setForeground(style, DiscordTheme.TEXT_NORMAL);
+                doc.insertString(doc.getLength(), msg + "\n", style);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public static void main(String[] args) {
