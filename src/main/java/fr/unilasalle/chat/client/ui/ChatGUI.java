@@ -25,9 +25,13 @@ public class ChatGUI extends JFrame implements MessageListener {
     private String currentChannel = "general";
 
     private String username;
+    private String password;
+    private boolean registerMode;
 
-    public ChatGUI(String hostname, int port, String username) {
+    public ChatGUI(String hostname, int port, String username, String password, boolean registerMode) {
         this.username = username;
+        this.password = password;
+        this.registerMode = registerMode;
         System.out.println("Initializing ChatGUI Window...");
         setTitle("Discord (Java Edition) - " + username);
         setSize(1000, 700);
@@ -101,11 +105,17 @@ public class ChatGUI extends JFrame implements MessageListener {
         if (doc == null) {
             doc = new DefaultStyledDocument();
             channelDocs.put(newChannel, doc);
+        } else {
+            // Clear existing local history for this channel to prevent duplication
+            // when the server sends the history again.
+            try {
+                doc.remove(0, doc.getLength());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         chatArea.setDocument(doc);
-        // appendToChat("Switched to #" + newChannel, Color.GRAY); // User requested to
-        // hide this
     }
 
     private void createChatArea() {
@@ -230,7 +240,40 @@ public class ChatGUI extends JFrame implements MessageListener {
     @Override
     public void onMessageReceived(String message) {
         SwingUtilities.invokeLater(() -> {
-            // Handle automatic login handshake
+            // Handle Authentication protocol
+            if (message.trim().equals("AUTH_REQUIRED")) {
+                if (registerMode) {
+                    client.sendMessage("/register " + username + " " + password);
+                } else {
+                    client.sendMessage("/login " + username + " " + password);
+                }
+                return;
+            }
+
+            if (message.startsWith("LOGIN_SUCCESS")) {
+                appendToChat("System: Logged in successfully!", DiscordTheme.ACTION_BG);
+                return;
+            }
+
+            if (message.equals("REGISTRATION_SUCCESS")) {
+                appendToChat("System: Account created! Logging in...", DiscordTheme.ACTION_BG);
+                client.sendMessage("/login " + username + " " + password);
+                return;
+            }
+
+            if (message.startsWith("LOGIN_FAIL")) {
+                JOptionPane.showMessageDialog(this, "Login Failed: " + message);
+                System.exit(0);
+                return;
+            }
+
+            if (message.startsWith("REGISTRATION_FAIL")) {
+                JOptionPane.showMessageDialog(this, "Registration Failed (User exists?)");
+                System.exit(0);
+                return;
+            }
+
+            // Handle automatic login handshake (Legacy fallback)
             if (message.trim().equalsIgnoreCase("Enter your username:")) {
                 System.out.println("Server asked for username, sending: " + username);
                 client.sendMessage(username);
@@ -314,9 +357,28 @@ public class ChatGUI extends JFrame implements MessageListener {
 
         SimpleAttributeSet style = new SimpleAttributeSet();
 
+        String timeToDisplay = java.time.LocalTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
+        String cleanMsg = msg;
+
+        // Check for HISTORY prefix: [HistoryTime] [User]: Msg
+        // Format from DB: HISTORY:[HH:mm:ss] [User]: Msg
+        if (msg.startsWith("HISTORY:")) {
+            try {
+                // Parse timestamp: HISTORY:[HH:mm:ss] ...
+                int endBracket = msg.indexOf("] ");
+                if (endBracket > 0) {
+                    timeToDisplay = msg.substring("HISTORY:[".length(), endBracket); // Extract HH:mm:ss
+                    cleanMsg = msg.substring(endBracket + 2); // Extract "[User]: Msg"
+                }
+            } catch (Exception e) {
+                // Fallback
+                cleanMsg = msg.substring("HISTORY:".length());
+            }
+        }
+
         // Add Timestamp
-        String time = "[" + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))
-                + "] ";
+        String time = "[" + timeToDisplay + "] ";
         try {
             SimpleAttributeSet timeStyle = new SimpleAttributeSet();
             StyleConstants.setForeground(timeStyle, DiscordTheme.TEXT_MUTED);
@@ -326,8 +388,8 @@ public class ChatGUI extends JFrame implements MessageListener {
         }
 
         // Check for internal LOG inside CHANMSG (e.g. joins/leaves in that channel)
-        if (msg.startsWith("LOG:")) {
-            String logContent = msg.substring(4);
+        if (cleanMsg.startsWith("LOG:")) {
+            String logContent = cleanMsg.substring(4);
             StyleConstants.setForeground(style, DiscordTheme.TEXT_MUTED);
             try {
                 doc.insertString(doc.getLength(), logContent + "\n", style);
@@ -337,10 +399,10 @@ public class ChatGUI extends JFrame implements MessageListener {
         }
 
         try {
-            if (msg.startsWith("[") && msg.contains("]: ")) {
-                int splitIndex = msg.indexOf("]: ") + 3;
-                String userPart = msg.substring(0, splitIndex);
-                String contentPart = msg.substring(splitIndex);
+            if (cleanMsg.startsWith("[") && cleanMsg.contains("]: ")) {
+                int splitIndex = cleanMsg.indexOf("]: ") + 3;
+                String userPart = cleanMsg.substring(0, splitIndex);
+                String contentPart = cleanMsg.substring(splitIndex);
 
                 String msgUser = userPart.substring(1, userPart.length() - 3);
 
@@ -353,7 +415,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                 doc.insertString(doc.getLength(), contentPart + "\n", style);
             } else {
                 StyleConstants.setForeground(style, DiscordTheme.TEXT_NORMAL);
-                doc.insertString(doc.getLength(), msg + "\n", style);
+                doc.insertString(doc.getLength(), cleanMsg + "\n", style);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -370,11 +432,14 @@ public class ChatGUI extends JFrame implements MessageListener {
 
                 if (loginDlg.isSucceeded()) {
                     String username = loginDlg.getUsername();
+                    String password = loginDlg.getPassword();
+                    boolean registerMode = loginDlg.isRegisterMode();
+
                     String host = loginDlg.getIP();
                     int port = loginDlg.getPort();
 
                     System.out.println("Creating GUI for " + username + " on " + host + ":" + port);
-                    new ChatGUI(host, port, username);
+                    new ChatGUI(host, port, username, password, registerMode);
                 } else {
                     System.out.println("Login cancelled.");
                     System.exit(0);

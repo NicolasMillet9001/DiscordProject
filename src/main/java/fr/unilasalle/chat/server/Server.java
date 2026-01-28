@@ -10,9 +10,15 @@ import java.util.Set;
 public class Server {
     private int port;
     private Set<ClientHandler> userThreads = ConcurrentHashMap.newKeySet();
+    private DatabaseService dbService;
 
     public Server(int port) {
         this.port = port;
+        this.dbService = new DatabaseService();
+    }
+
+    public DatabaseService getDbService() {
+        return dbService;
     }
 
     public void execute() {
@@ -59,6 +65,29 @@ public class Server {
 
     void broadcastToChannel(String channel, String message, ClientHandler sender) {
         Logger.log("[" + channel + "] " + message);
+
+        // Save to DB (only if it's a real user message, i.e. sender != null)
+        // Actually, logic is: "sender" is user.
+        // If message is tagged with user like "[User]: Content", we should parse or
+        // save raw?
+        // Let's assume sender.getUserName() is the user.
+        // Wait, message arg here is roughly "[User]: Content" or system message.
+        // If sender is not null, it's a user message.
+        if (sender != null) {
+            // Need to parse content from message: "[User]: Content" -> "Content"
+            // Or just save the whole formatted message?
+            // User requested "conversation history". Saving formatted is easier for replay.
+            // But my table has "username" and "content".
+            // Let's retry: save raw content?
+            // The message passed here is already formatted "[User]: Content".
+            // Extract content:
+            String content = message;
+            if (message.startsWith("[" + sender.getUserName() + "]: ")) {
+                content = message.substring(sender.getUserName().length() + 4);
+            }
+            dbService.saveMessage(channel, sender.getUserName(), content);
+        }
+
         String taggedMessage = "CHANMSG " + channel + " " + message;
         for (ClientHandler user : userThreads) {
             if (user != sender) {

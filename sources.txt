@@ -1,4 +1,5 @@
 src/main/java/fr/unilasalle/chat/server/Logger.java
+src/main/java/fr/unilasalle/chat/server/DatabaseService.java
 src/main/java/fr/unilasalle/chat/server/ClientHandler.java
 src/main/java/fr/unilasalle/chat/server/Server.java
 src/main/java/fr/unilasalle/chat/server/WeatherService.java
