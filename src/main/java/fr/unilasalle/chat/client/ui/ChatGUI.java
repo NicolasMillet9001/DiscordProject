@@ -522,7 +522,26 @@ public class ChatGUI extends JFrame implements MessageListener {
                     String targetChannel = parts[1];
                     String content = parts[2];
                     
-                    if (content.startsWith("USERLIST ")) { 
+                    if (content.startsWith("USERLIST ")) {
+                        // Parse USERLIST <channel> <users>
+                        // content is "USERLIST channel user1,user2..."
+                        String prefix = "USERLIST " + targetChannel + " ";
+                        if (content.startsWith(prefix)) {
+                             String users = content.substring(prefix.length());
+                             // Only update if it matches current view
+                             if (targetChannel.equals(currentChannel)) {
+                                 userListModel.clear();
+                                 for (String u : users.split(",")) {
+                                     if (!u.isEmpty())
+                                         userListModel.addElement(u);
+                                 }
+                             }
+                        }
+                        return; 
+                    }
+                    
+                    // Filter system join logs if they come as CHANMSG
+                    if (content.startsWith("LOG:")) {
                         return; 
                     }
 
@@ -536,6 +555,15 @@ public class ChatGUI extends JFrame implements MessageListener {
                 return;
             }
 
+            // Global System Messages (LOG:)
+            if (message.startsWith("LOG:")) {
+                String logContent = message.substring(4);
+                if (logContent.trim().startsWith("You joined channel")) return;
+                if (logContent.trim().startsWith("You are in channel")) return;
+                // Don't show generic logs in chat for now to keep it clean
+                return; 
+            }
+            
             // Fallback
             appendToChat(message, Color.BLACK);
         });
