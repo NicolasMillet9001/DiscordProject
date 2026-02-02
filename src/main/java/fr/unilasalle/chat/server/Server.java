@@ -11,10 +11,12 @@ public class Server {
     private int port;
     private Set<ClientHandler> userThreads = ConcurrentHashMap.newKeySet();
     private DatabaseService dbService;
+    private Set<String> knownChannels = ConcurrentHashMap.newKeySet();
 
     public Server(int port) {
         this.port = port;
         this.dbService = new DatabaseService();
+        this.knownChannels.add("general");
     }
 
     public DatabaseService getDbService() {
@@ -132,11 +134,11 @@ public class Server {
         String message = "CHANNELLIST " + channels;
         broadcast(message, null);
     }
-    
+
     public void checkAndAddChannel(String channelName) {
         if (!knownChannels.contains(channelName)) {
             knownChannels.add(channelName);
-            broadcastChannelList(); 
+            broadcastChannelList();
         }
     }
 

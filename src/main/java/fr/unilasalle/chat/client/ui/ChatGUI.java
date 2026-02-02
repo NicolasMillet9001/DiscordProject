@@ -42,7 +42,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         setSize(900, 650);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        
+
         // XP Window Background
         JPanel mainContent = new JPanel(new BorderLayout());
         mainContent.setBackground(MsnTheme.BACKGROUND);
@@ -54,17 +54,17 @@ public class ChatGUI extends JFrame implements MessageListener {
 
         // Initialize Components
         createTopHeader();
-        
+
         JPanel splitPanel = new JPanel(new BorderLayout());
         splitPanel.setOpaque(false);
         splitPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
-        
+
         createSidebar(splitPanel);
         createChatArea(splitPanel);
-        
+
         add(splitPanel, BorderLayout.CENTER);
-        
-        createUserList(); 
+
+        createUserList();
 
         // Connect to Client
         System.out.println("Connecting to Server...");
@@ -74,7 +74,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         System.out.println("Window set to visible.");
         setVisible(true);
     }
-    
+
     private void createTopHeader() {
         XPGradientPanel header = new XPGradientPanel();
         header.setLayout(new BorderLayout());
@@ -85,7 +85,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         appTitle.setFont(new Font("Trebuchet MS", Font.BOLD, 18));
         appTitle.setForeground(Color.WHITE);
         header.add(appTitle, BorderLayout.WEST);
-        
+
         JLabel userStatus = new JLabel("<html>Logged in as <b>" + username + "</b><br>(Online)</html>");
         userStatus.setFont(MsnTheme.FONT_MAIN);
         userStatus.setForeground(Color.WHITE);
@@ -104,7 +104,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         // Title Panel
         JPanel titlePanel = new JPanel(new BorderLayout());
         titlePanel.setBackground(MsnTheme.SIDEBAR);
-        
+
         JLabel title = new JLabel(" Conversations");
         title.setFont(MsnTheme.FONT_BOLD);
         title.setForeground(MsnTheme.HEADER_TOP);
@@ -115,12 +115,12 @@ public class ChatGUI extends JFrame implements MessageListener {
         styleXPButton(addBtn);
         addBtn.setPreferredSize(new Dimension(70, 25));
         addBtn.addActionListener(e -> promptCreateChannel());
-        
+
         JPanel btnContainer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         btnContainer.setOpaque(false);
         btnContainer.add(addBtn);
         titlePanel.add(btnContainer, BorderLayout.EAST);
-        
+
         sidebar.add(titlePanel, BorderLayout.NORTH);
 
         channelListModel = new DefaultListModel<>();
@@ -133,12 +133,14 @@ public class ChatGUI extends JFrame implements MessageListener {
         channelList.setSelectionForeground(MsnTheme.TEXT_NORMAL);
         channelList.setFont(MsnTheme.FONT_MAIN);
         channelList.setFixedCellHeight(25);
-        
+
         // Custom Renderer for XP look
         channelList.setCellRenderer(new DefaultListCellRenderer() {
             @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-                JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
+                    boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected,
+                        cellHasFocus);
                 label.setBorder(new EmptyBorder(2, 5, 2, 5));
                 if (isSelected) {
                     label.setBackground(MsnTheme.SELECTION_BG);
@@ -164,7 +166,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         JScrollPane scroll = new JScrollPane(channelList);
         scroll.setBorder(null);
         sidebar.add(scroll, BorderLayout.CENTER);
-        
+
         parent.add(sidebar, BorderLayout.WEST);
     }
 
@@ -176,13 +178,21 @@ public class ChatGUI extends JFrame implements MessageListener {
         if (doc == null) {
             doc = new DefaultStyledDocument();
             channelDocs.put(newChannel, doc);
+        } else {
+            // Clear existing document to prevent duplication of history
+            try {
+                doc.remove(0, doc.getLength());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         chatArea.setDocument(doc);
     }
 
     private void promptCreateChannel() {
-        String name = JOptionPane.showInputDialog(this, "Enter conversation name:", "Start Conversation", JOptionPane.PLAIN_MESSAGE);
+        String name = JOptionPane.showInputDialog(this, "Enter conversation name:", "Start Conversation",
+                JOptionPane.PLAIN_MESSAGE);
         if (name != null && !name.trim().isEmpty()) {
             name = name.trim().replace("#", "").replace(" ", "_"); // Sanitize
             switchChannel(name);
@@ -225,7 +235,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         // Toolbar
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 0));
         toolbar.setBackground(MsnTheme.BACKGROUND);
-        
+
         JButton colorBtn = new JButton("A");
         colorBtn.setFont(new Font("Georgia", Font.BOLD, 14));
         colorBtn.setForeground(Color.BLACK);
@@ -243,7 +253,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         JButton bgBtn = new JButton("B"); // Using B to represent background
         bgBtn.setFont(new Font("Arial", Font.BOLD, 14));
         bgBtn.setBackground(Color.LIGHT_GRAY);
-        bgBtn.setForeground(Color.WHITE); 
+        bgBtn.setForeground(Color.WHITE);
         bgBtn.setToolTipText("Change Background Color");
         styleToolbarButton(bgBtn);
         bgBtn.addActionListener(e -> {
@@ -254,54 +264,53 @@ public class ChatGUI extends JFrame implements MessageListener {
                 inputField.setBackground(newColor);
             }
         });
-        
+
         JButton resetBtn = new JButton("x");
         resetBtn.setFont(new Font("Arial", Font.PLAIN, 12));
         resetBtn.setToolTipText("Reset Styles");
         styleToolbarButton(resetBtn);
         resetBtn.addActionListener(e -> {
-             msgTextColor = Color.BLACK;
-             msgBgColor = Color.WHITE;
-             colorBtn.setForeground(msgTextColor);
-             bgBtn.setBackground(Color.LIGHT_GRAY);
-             inputField.setForeground(msgTextColor);
-             inputField.setBackground(msgBgColor);
+            msgTextColor = Color.BLACK;
+            msgBgColor = Color.WHITE;
+            colorBtn.setForeground(msgTextColor);
+            bgBtn.setBackground(Color.LIGHT_GRAY);
+            inputField.setForeground(msgTextColor);
+            inputField.setBackground(msgBgColor);
         });
 
         toolbar.add(colorBtn);
         toolbar.add(bgBtn);
         toolbar.add(resetBtn);
         inputPanel.add(toolbar, BorderLayout.NORTH);
-        
+
         inputField = new JTextField();
         inputField.setBackground(Color.WHITE);
         inputField.setForeground(MsnTheme.TEXT_NORMAL);
         inputField.setFont(MsnTheme.FONT_MAIN);
         inputField.setBorder(new CompoundBorder(
                 BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR),
-                new EmptyBorder(5, 5, 5, 5)
-        ));
+                new EmptyBorder(5, 5, 5, 5)));
         inputField.addActionListener(e -> sendMessage());
 
         inputPanel.add(inputField, BorderLayout.CENTER);
-        
+
         JButton sendBtn = new JButton("Send");
         styleXPButton(sendBtn);
         sendBtn.setPreferredSize(new Dimension(70, 0));
         sendBtn.addActionListener(e -> sendMessage());
-        
+
         JPanel sendPanel = new JPanel(new BorderLayout());
         sendPanel.setOpaque(false);
         sendPanel.setBorder(new EmptyBorder(0, 5, 0, 0));
         sendPanel.add(sendBtn, BorderLayout.CENTER);
-        
+
         inputPanel.add(sendPanel, BorderLayout.EAST);
-        
+
         chatPanel.add(inputPanel, BorderLayout.SOUTH);
 
         parent.add(chatPanel, BorderLayout.CENTER);
     }
-    
+
     // Style helper for toolbar buttons
     private void styleToolbarButton(JButton btn) {
         btn.setPreferredSize(new Dimension(25, 25));
@@ -309,34 +318,35 @@ public class ChatGUI extends JFrame implements MessageListener {
         btn.setContentAreaFilled(false);
         btn.setFocusPainted(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.setOpaque(true); 
-        
+        btn.setOpaque(true);
+
         btn.addMouseListener(new MouseAdapter() {
             public void mouseEntered(MouseEvent e) {
                 btn.setBorder(BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR));
             }
+
             public void mouseExited(MouseEvent e) {
                 btn.setBorder(BorderFactory.createEmptyBorder());
             }
         });
     }
-    
+
     // Style helper for buttons
     private void styleXPButton(JButton btn) {
         btn.setBackground(MsnTheme.ACTION_BG);
         btn.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR),
-                new EmptyBorder(2, 5, 2, 5)
-        ));
+                new EmptyBorder(2, 5, 2, 5)));
         btn.setFocusPainted(false);
         btn.setFont(MsnTheme.FONT_MAIN);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        
+
         // Simple hover effect
         btn.addMouseListener(new MouseAdapter() {
             public void mouseEntered(MouseEvent e) {
                 btn.setBackground(MsnTheme.SELECTION_BG);
             }
+
             public void mouseExited(MouseEvent e) {
                 btn.setBackground(MsnTheme.ACTION_BG);
             }
@@ -360,34 +370,36 @@ public class ChatGUI extends JFrame implements MessageListener {
         userList.setBackground(MsnTheme.SIDEBAR);
         userList.setForeground(MsnTheme.TEXT_NORMAL);
         userList.setFont(MsnTheme.FONT_MAIN);
-        
+
         userPanel.add(new JScrollPane(userList), BorderLayout.CENTER);
-        
+
         add(userPanel, BorderLayout.EAST);
     }
 
     private void sendMessage() {
         String text = inputField.getText();
         if (!text.isEmpty()) {
-            
+
             // Construct message with style meta-data if needed
             // Format: [c=#RRGGBB][b=#RRGGBB]Message content
             StringBuilder payload = new StringBuilder();
-            
+
             if (!msgTextColor.equals(Color.BLACK)) {
-                String hex = String.format("#%02x%02x%02x", msgTextColor.getRed(), msgTextColor.getGreen(), msgTextColor.getBlue());
+                String hex = String.format("#%02x%02x%02x", msgTextColor.getRed(), msgTextColor.getGreen(),
+                        msgTextColor.getBlue());
                 payload.append("[c=").append(hex).append("]");
             }
-            
+
             if (!msgBgColor.equals(Color.WHITE)) {
-                 String hex = String.format("#%02x%02x%02x", msgBgColor.getRed(), msgBgColor.getGreen(), msgBgColor.getBlue());
-                 payload.append("[b=").append(hex).append("]");
+                String hex = String.format("#%02x%02x%02x", msgBgColor.getRed(), msgBgColor.getGreen(),
+                        msgBgColor.getBlue());
+                payload.append("[b=").append(hex).append("]");
             }
-            
+
             payload.append(text);
-            
+
             client.sendMessage(payload.toString());
-            
+
             if (!text.startsWith("/")) {
                 // Optimistic render
                 appendToChat("[" + username + "]: " + payload.toString(), getUniqueColor(username));
@@ -405,72 +417,81 @@ public class ChatGUI extends JFrame implements MessageListener {
     private void appendToChat(String msg, Color c) {
         StyledDocument doc = chatArea.getStyledDocument();
 
-         SimpleAttributeSet style = new SimpleAttributeSet();
+        SimpleAttributeSet style = new SimpleAttributeSet();
         StyleConstants.setFontFamily(style, "Tahoma");
         StyleConstants.setFontSize(style, 12);
-        
+
         try {
             // MSN Style Parsing
             if (msg.startsWith("[")) {
-                 int split = msg.indexOf("]:");
-                 if (split > 0) {
-                     String user = msg.substring(1, split); 
-                     if (user.startsWith("[")) user = user.substring(1);
-                     
-                     String content = msg.substring(split + 3); 
-                     
-                     // Name Line
-                     SimpleAttributeSet nameStyle = new SimpleAttributeSet();
-                     StyleConstants.setForeground(nameStyle, MsnTheme.TEXT_MUTED);
-                     StyleConstants.setFontSize(nameStyle, 11);
-                     doc.insertString(doc.getLength(), user + " says:\n", nameStyle);
-                     
-                     // Message Line Parsing
-                     Color fg = MsnTheme.TEXT_NORMAL;
-                     Color bg = null;
-                     String cleanContent = content;
-                     
-                     // Simple Iterative Parser for [c=#...][b=#...] tags
-                     while(cleanContent.startsWith("[c=#") || cleanContent.startsWith("[b=#")) {
-                         if (cleanContent.startsWith("[c=#")) {
-                             int end = cleanContent.indexOf("]");
-                             if (end > 0) {
-                                 String hex = cleanContent.substring(3, end);
-                                 try { fg = Color.decode(hex); } catch(Exception e){}
-                                 cleanContent = cleanContent.substring(end + 1);
-                             } else break;
-                         }
-                         else if (cleanContent.startsWith("[b=#")) {
-                             int end = cleanContent.indexOf("]");
-                             if (end > 0) {
-                                 String hex = cleanContent.substring(3, end);
-                                 try { bg = Color.decode(hex); } catch(Exception e){}
-                                 cleanContent = cleanContent.substring(end + 1);
-                             } else break;
-                         }
-                     }
+                int split = msg.indexOf("]:");
+                if (split > 0) {
+                    String user = msg.substring(1, split);
+                    if (user.startsWith("["))
+                        user = user.substring(1);
 
-                     SimpleAttributeSet msgStyle = new SimpleAttributeSet();
-                     StyleConstants.setForeground(msgStyle, fg);
-                     if (bg != null) StyleConstants.setBackground(msgStyle, bg);
-                     StyleConstants.setFontSize(msgStyle, 13);
-                     
-                     doc.insertString(doc.getLength(), "  " + cleanContent + "\n\n", msgStyle);
-                     return;
-                 }
+                    String content = msg.substring(split + 3);
+
+                    // Name Line
+                    SimpleAttributeSet nameStyle = new SimpleAttributeSet();
+                    StyleConstants.setForeground(nameStyle, MsnTheme.TEXT_MUTED);
+                    StyleConstants.setFontSize(nameStyle, 11);
+                    doc.insertString(doc.getLength(), user + " says:\n", nameStyle);
+
+                    // Message Line Parsing
+                    Color fg = MsnTheme.TEXT_NORMAL;
+                    Color bg = null;
+                    String cleanContent = content;
+
+                    // Simple Iterative Parser for [c=#...][b=#...] tags
+                    while (cleanContent.startsWith("[c=#") || cleanContent.startsWith("[b=#")) {
+                        if (cleanContent.startsWith("[c=#")) {
+                            int end = cleanContent.indexOf("]");
+                            if (end > 0) {
+                                String hex = cleanContent.substring(3, end);
+                                try {
+                                    fg = Color.decode(hex);
+                                } catch (Exception e) {
+                                }
+                                cleanContent = cleanContent.substring(end + 1);
+                            } else
+                                break;
+                        } else if (cleanContent.startsWith("[b=#")) {
+                            int end = cleanContent.indexOf("]");
+                            if (end > 0) {
+                                String hex = cleanContent.substring(3, end);
+                                try {
+                                    bg = Color.decode(hex);
+                                } catch (Exception e) {
+                                }
+                                cleanContent = cleanContent.substring(end + 1);
+                            } else
+                                break;
+                        }
+                    }
+
+                    SimpleAttributeSet msgStyle = new SimpleAttributeSet();
+                    StyleConstants.setForeground(msgStyle, fg);
+                    if (bg != null)
+                        StyleConstants.setBackground(msgStyle, bg);
+                    StyleConstants.setFontSize(msgStyle, 13);
+
+                    doc.insertString(doc.getLength(), "  " + cleanContent + "\n\n", msgStyle);
+                    return;
+                }
             }
-            
+
             // Fallback
             StyleConstants.setForeground(style, MsnTheme.TEXT_NORMAL);
             doc.insertString(doc.getLength(), msg + "\n", style);
-            
+
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     private Color getUniqueColor(String name) {
-        return MsnTheme.TEXT_NORMAL; 
+        return MsnTheme.TEXT_NORMAL;
     }
 
     @Override
@@ -495,7 +516,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                 client.sendMessage("/login " + username + " " + password);
                 return;
             }
-            
+
             if (message.startsWith("CHANNELLIST ")) {
                 String channels = message.substring("CHANNELLIST ".length());
                 channelListModel.clear();
@@ -505,7 +526,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                 }
                 return;
             }
-            
+
             if (message.startsWith("USERLIST " + currentChannel + " ")) {
                 String users = message.substring(("USERLIST " + currentChannel + " ").length());
                 userListModel.clear();
@@ -521,16 +542,27 @@ public class ChatGUI extends JFrame implements MessageListener {
                 if (parts.length >= 3) {
                     String targetChannel = parts[1];
                     String content = parts[2];
-                    
-                    if (content.startsWith("USERLIST ")) { 
-                        return; 
+
+                    if (content.startsWith("USERLIST ")) {
+                        return;
                     }
 
                     if (!channelDocs.containsKey(targetChannel)) {
                         channelDocs.put(targetChannel, new DefaultStyledDocument());
                     }
-                    if (targetChannel.equals(currentChannel)) // Only append if active, otherwise background
-                        appendToChat(content, Color.BLACK); 
+                    if (targetChannel.equals(currentChannel)) {
+                        // Only append if active, otherwise background
+                        if (content.startsWith("HISTORY:")) {
+                            try {
+                                String clean = content.substring("HISTORY:".length());
+                                appendToChat(clean, Color.BLACK);
+                            } catch (Exception e) {
+                                appendToChat(content, Color.BLACK);
+                            }
+                        } else {
+                            appendToChat(content, Color.BLACK);
+                        }
+                    }
                     // ToDo: Handle background notifications
                 }
                 return;
@@ -555,20 +587,21 @@ public class ChatGUI extends JFrame implements MessageListener {
             g2d.fillRect(0, 0, w, h);
         }
     }
-    
+
     public static void main(String[] args) {
         System.out.println("Launching ChatGUI...");
         SwingUtilities.invokeLater(() -> {
             try {
-                // You might need to adjust this to launch straight away if testing without server
+                // You might need to adjust this to launch straight away if testing without
+                // server
                 // But for now keeping standard flow
                 LoginDialog loginDlg = new LoginDialog(null);
                 loginDlg.setVisible(true);
 
                 if (loginDlg.isSucceeded()) {
-                    new ChatGUI(loginDlg.getIP(), loginDlg.getPort(), 
-                              loginDlg.getUsername(), loginDlg.getPassword(), 
-                              loginDlg.isRegisterMode());
+                    new ChatGUI(loginDlg.getIP(), loginDlg.getPort(),
+                            loginDlg.getUsername(), loginDlg.getPassword(),
+                            loginDlg.isRegisterMode());
                 } else {
                     System.exit(0);
                 }
