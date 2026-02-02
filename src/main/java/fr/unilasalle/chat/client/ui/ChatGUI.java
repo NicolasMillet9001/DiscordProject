@@ -4,12 +4,16 @@ import fr.unilasalle.chat.client.Client;
 import fr.unilasalle.chat.client.MessageListener;
 
 import javax.swing.*;
+import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.MatteBorder;
 import javax.swing.text.DefaultStyledDocument;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,20 +37,34 @@ public class ChatGUI extends JFrame implements MessageListener {
         this.username = username;
         this.password = password;
         this.registerMode = registerMode;
-        System.out.println("Initializing ChatGUI Window...");
-        setTitle("Discord (Java Edition) - " + username);
-        setSize(1000, 700);
+        System.out.println("Initializing ChatGUI Window (MSN Style)...");
+        setTitle("MSN Messenger - " + username);
+        setSize(900, 650);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        setLayout(new BorderLayout());
+        
+        // XP Window Background
+        JPanel mainContent = new JPanel(new BorderLayout());
+        mainContent.setBackground(MsnTheme.BACKGROUND);
+        mainContent.setBorder(BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR, 2));
+        setContentPane(mainContent);
 
         // Initialize default channel doc
         channelDocs.put("general", new DefaultStyledDocument());
 
         // Initialize Components
-        createSidebar();
-        createChatArea();
-        createUserList();
+        createTopHeader();
+        
+        JPanel splitPanel = new JPanel(new BorderLayout());
+        splitPanel.setOpaque(false);
+        splitPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
+        
+        createSidebar(splitPanel);
+        createChatArea(splitPanel);
+        
+        add(splitPanel, BorderLayout.CENTER);
+        
+        createUserList(); 
 
         // Connect to Client
         System.out.println("Connecting to Server...");
@@ -56,29 +74,52 @@ public class ChatGUI extends JFrame implements MessageListener {
         System.out.println("Window set to visible.");
         setVisible(true);
     }
+    
+    private void createTopHeader() {
+        XPGradientPanel header = new XPGradientPanel();
+        header.setLayout(new BorderLayout());
+        header.setPreferredSize(new Dimension(0, 50));
+        header.setBorder(new EmptyBorder(0, 10, 0, 10)); // Padding
 
-    private void createSidebar() {
-        JPanel sidebar = new JPanel(new BorderLayout());
-        sidebar.setBackground(DiscordTheme.SIDEBAR);
-        sidebar.setPreferredSize(new Dimension(200, 0));
-
-        JPanel titlePanel = new JPanel(new BorderLayout());
-        titlePanel.setBackground(DiscordTheme.SIDEBAR);
+        JLabel appTitle = new JLabel("MSN Messenger");
+        appTitle.setFont(new Font("Trebuchet MS", Font.BOLD, 18));
+        appTitle.setForeground(Color.WHITE);
+        header.add(appTitle, BorderLayout.WEST);
         
-        JLabel title = new JLabel("CHANNELS");
-        title.setForeground(DiscordTheme.TEXT_MUTED);
-        title.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JLabel userStatus = new JLabel("<html>Logged in as <b>" + username + "</b><br>(Online)</html>");
+        userStatus.setFont(MsnTheme.FONT_MAIN);
+        userStatus.setForeground(Color.WHITE);
+        userStatus.setHorizontalAlignment(SwingConstants.RIGHT);
+        header.add(userStatus, BorderLayout.EAST);
+
+        add(header, BorderLayout.NORTH);
+    }
+
+    private void createSidebar(JPanel parent) {
+        JPanel sidebar = new JPanel(new BorderLayout());
+        sidebar.setBackground(MsnTheme.SIDEBAR);
+        sidebar.setPreferredSize(new Dimension(220, 0));
+        sidebar.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, MsnTheme.BORDER_COLOR));
+
+        // Title Panel
+        JPanel titlePanel = new JPanel(new BorderLayout());
+        titlePanel.setBackground(MsnTheme.SIDEBAR);
+        
+        JLabel title = new JLabel(" Conversations");
+        title.setFont(MsnTheme.FONT_BOLD);
+        title.setForeground(MsnTheme.HEADER_TOP);
+        title.setBorder(new EmptyBorder(5, 5, 5, 5));
         titlePanel.add(title, BorderLayout.CENTER);
 
-        JButton addBtn = new JButton("+");
-        addBtn.setForeground(DiscordTheme.TEXT_MUTED);
-        addBtn.setBackground(DiscordTheme.SIDEBAR);
-        addBtn.setBorder(new EmptyBorder(10, 10, 10, 10));
-        addBtn.setFocusPainted(false);
-        addBtn.setContentAreaFilled(false);
-        addBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        JButton addBtn = new JButton("<html><b>+ Create</b></html>");
+        styleXPButton(addBtn);
+        addBtn.setPreferredSize(new Dimension(70, 25));
         addBtn.addActionListener(e -> promptCreateChannel());
-        titlePanel.add(addBtn, BorderLayout.EAST);
+        
+        JPanel btnContainer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        btnContainer.setOpaque(false);
+        btnContainer.add(addBtn);
+        titlePanel.add(btnContainer, BorderLayout.EAST);
         
         sidebar.add(titlePanel, BorderLayout.NORTH);
 
@@ -86,12 +127,27 @@ public class ChatGUI extends JFrame implements MessageListener {
         // Channels will be populated by server
 
         channelList = new JList<>(channelListModel);
-        channelList.setBackground(DiscordTheme.SIDEBAR);
-        channelList.setForeground(DiscordTheme.TEXT_NORMAL);
-        channelList.setSelectionBackground(DiscordTheme.ACTION_BG); // Assuming undefined, fixed below
-        channelList.setSelectionForeground(Color.WHITE);
-        channelList.setFont(new Font("SansSerif", Font.BOLD, 14));
-        channelList.setFixedCellHeight(30);
+        channelList.setBackground(MsnTheme.SIDEBAR);
+        channelList.setForeground(MsnTheme.TEXT_NORMAL);
+        channelList.setSelectionBackground(MsnTheme.SELECTION_BG);
+        channelList.setSelectionForeground(MsnTheme.TEXT_NORMAL);
+        channelList.setFont(MsnTheme.FONT_MAIN);
+        channelList.setFixedCellHeight(25);
+        
+        // Custom Renderer for XP look
+        channelList.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                label.setBorder(new EmptyBorder(2, 5, 2, 5));
+                if (isSelected) {
+                    label.setBackground(MsnTheme.SELECTION_BG);
+                    label.setBorder(BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR));
+                }
+                label.setIcon(UIManager.getIcon("FileView.fileIcon")); // Generic icon place holder
+                return label;
+            }
+        });
 
         channelList.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
@@ -105,92 +161,146 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
         });
 
-        sidebar.add(channelList, BorderLayout.CENTER);
-        add(sidebar, BorderLayout.WEST);
+        JScrollPane scroll = new JScrollPane(channelList);
+        scroll.setBorder(null);
+        sidebar.add(scroll, BorderLayout.CENTER);
+        
+        parent.add(sidebar, BorderLayout.WEST);
     }
 
     private void switchChannel(String newChannel) {
         client.sendMessage("/join " + newChannel);
-
-        // Save current doc (already in map/model, just need to swap view)
         currentChannel = newChannel;
 
         StyledDocument doc = channelDocs.get(newChannel);
         if (doc == null) {
             doc = new DefaultStyledDocument();
             channelDocs.put(newChannel, doc);
-        } else {
-            // Clear existing local history for this channel to prevent duplication
-            // when the server sends the history again.
-            try {
-                doc.remove(0, doc.getLength());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
 
         chatArea.setDocument(doc);
     }
 
     private void promptCreateChannel() {
-        String name = JOptionPane.showInputDialog(this, "Enter channel name:", "Create Channel", JOptionPane.PLAIN_MESSAGE);
+        String name = JOptionPane.showInputDialog(this, "Enter conversation name:", "Start Conversation", JOptionPane.PLAIN_MESSAGE);
         if (name != null && !name.trim().isEmpty()) {
             name = name.trim().replace("#", "").replace(" ", "_"); // Sanitize
             switchChannel(name);
         }
     }
 
-    private void createChatArea() {
+    private void createChatArea(JPanel parent) {
         JPanel chatPanel = new JPanel(new BorderLayout());
-        chatPanel.setBackground(DiscordTheme.BACKGROUND);
+        chatPanel.setBackground(MsnTheme.BACKGROUND);
+        chatPanel.setBorder(new EmptyBorder(0, 5, 0, 0)); // Gap from sidebar
+
+        // Chat Header
+        JPanel chatHeader = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        chatHeader.setBackground(Color.WHITE);
+        chatHeader.setBorder(new MatteBorder(0, 0, 1, 0, MsnTheme.BORDER_COLOR));
+        JLabel talkingTo = new JLabel("Chatting in " + currentChannel);
+        talkingTo.setFont(MsnTheme.FONT_TITLE);
+        talkingTo.setForeground(MsnTheme.TEXT_NORMAL);
+        chatHeader.add(talkingTo);
+        chatPanel.add(chatHeader, BorderLayout.NORTH);
 
         chatArea = new JTextPane();
         chatArea.setEditable(false);
-        chatArea.setBackground(DiscordTheme.BACKGROUND);
-        chatArea.setForeground(DiscordTheme.TEXT_NORMAL);
-        chatArea.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        chatArea.setBackground(Color.WHITE);
+        chatArea.setForeground(MsnTheme.TEXT_NORMAL);
+        chatArea.setFont(MsnTheme.FONT_MAIN);
         chatArea.setDocument(channelDocs.get("general")); // Set initial doc
 
         JScrollPane scrollPane = new JScrollPane(chatArea);
-        scrollPane.setBorder(null);
-        scrollPane.getVerticalScrollBar().setUI(new ModernScrollBarUI());
+        scrollPane.setBorder(BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR));
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         chatPanel.add(scrollPane, BorderLayout.CENTER);
 
+        // Input Area (Resembles MSN Input box)
         JPanel inputPanel = new JPanel(new BorderLayout());
-        inputPanel.setBackground(DiscordTheme.BACKGROUND);
-        inputPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        inputPanel.setBackground(MsnTheme.BACKGROUND);
+        inputPanel.setBorder(new EmptyBorder(10, 0, 0, 0));
+        inputPanel.setPreferredSize(new Dimension(0, 80));
 
+        // Toolbar
+        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        toolbar.setBackground(MsnTheme.BACKGROUND);
+        toolbar.add(new JLabel("<html><font color='#666666' size='3'>A</font></html>"));
+        toolbar.add(new JLabel("<html><font color='#666666' size='3'><b>B</b></font></html>"));
+        toolbar.add(new JLabel("<html><font color='#666666' size='3'><i>I</i></font></html>"));
+        inputPanel.add(toolbar, BorderLayout.NORTH);
+        
         inputField = new JTextField();
-        inputField.setBackground(DiscordTheme.INPUT_BG);
-        inputField.setForeground(DiscordTheme.TEXT_NORMAL);
-        inputField.setCaretColor(Color.WHITE);
-        inputField.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        inputField.setBackground(Color.WHITE);
+        inputField.setForeground(MsnTheme.TEXT_NORMAL);
+        inputField.setFont(MsnTheme.FONT_MAIN);
+        inputField.setBorder(new CompoundBorder(
+                BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR),
+                new EmptyBorder(5, 5, 5, 5)
+        ));
         inputField.addActionListener(e -> sendMessage());
 
         inputPanel.add(inputField, BorderLayout.CENTER);
+        
+        JButton sendBtn = new JButton("Send");
+        styleXPButton(sendBtn);
+        sendBtn.setPreferredSize(new Dimension(70, 0));
+        sendBtn.addActionListener(e -> sendMessage());
+        
+        JPanel sendPanel = new JPanel(new BorderLayout());
+        sendPanel.setOpaque(false);
+        sendPanel.setBorder(new EmptyBorder(0, 5, 0, 0));
+        sendPanel.add(sendBtn, BorderLayout.CENTER);
+        
+        inputPanel.add(sendPanel, BorderLayout.EAST);
+        
         chatPanel.add(inputPanel, BorderLayout.SOUTH);
 
-        add(chatPanel, BorderLayout.CENTER);
+        parent.add(chatPanel, BorderLayout.CENTER);
+    }
+    
+    // Style helper for buttons
+    private void styleXPButton(JButton btn) {
+        btn.setBackground(MsnTheme.ACTION_BG);
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR),
+                new EmptyBorder(2, 5, 2, 5)
+        ));
+        btn.setFocusPainted(false);
+        btn.setFont(MsnTheme.FONT_MAIN);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        // Simple hover effect
+        btn.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                btn.setBackground(MsnTheme.SELECTION_BG);
+            }
+            public void mouseExited(MouseEvent e) {
+                btn.setBackground(MsnTheme.ACTION_BG);
+            }
+        });
     }
 
     private void createUserList() {
         JPanel userPanel = new JPanel(new BorderLayout());
-        userPanel.setBackground(DiscordTheme.SIDEBAR);
-        userPanel.setPreferredSize(new Dimension(200, 0));
+        userPanel.setBackground(MsnTheme.SIDEBAR);
+        userPanel.setPreferredSize(new Dimension(150, 0));
+        userPanel.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, MsnTheme.BORDER_COLOR));
 
-        JLabel title = new JLabel("MEMBERS");
-        title.setForeground(DiscordTheme.TEXT_MUTED);
-        title.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JLabel title = new JLabel(" Participants");
+        title.setFont(MsnTheme.FONT_BOLD);
+        title.setForeground(MsnTheme.HEADER_TOP);
+        title.setBorder(new EmptyBorder(5, 5, 5, 5));
         userPanel.add(title, BorderLayout.NORTH);
 
         userListModel = new DefaultListModel<>();
         JList<String> userList = new JList<>(userListModel);
-        userList.setBackground(DiscordTheme.SIDEBAR);
-        userList.setForeground(DiscordTheme.TEXT_NORMAL);
-        userList.setFont(new Font("SansSerif", Font.PLAIN, 14));
-
-        userPanel.add(userList, BorderLayout.CENTER);
+        userList.setBackground(MsnTheme.SIDEBAR);
+        userList.setForeground(MsnTheme.TEXT_NORMAL);
+        userList.setFont(MsnTheme.FONT_MAIN);
+        
+        userPanel.add(new JScrollPane(userList), BorderLayout.CENTER);
+        
         add(userPanel, BorderLayout.EAST);
     }
 
@@ -198,8 +308,6 @@ public class ChatGUI extends JFrame implements MessageListener {
         String text = inputField.getText();
         if (!text.isEmpty()) {
             client.sendMessage(text);
-            // Optimistic rendering: Show my own message immediately
-            // But don't show commands like /join as chat messages
             if (!text.startsWith("/")) {
                 appendToChat("[" + username + "]: " + text, getUniqueColor(username));
             }
@@ -211,58 +319,56 @@ public class ChatGUI extends JFrame implements MessageListener {
     private void appendToChat(String msg, Color c) {
         StyledDocument doc = chatArea.getStyledDocument();
 
-        SimpleAttributeSet style = new SimpleAttributeSet();
-        StyleConstants.setForeground(style, c);
-
-        // Add Timestamp
-        String time = "[" + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))
-                + "] ";
+         SimpleAttributeSet style = new SimpleAttributeSet();
+        StyleConstants.setFontFamily(style, "Tahoma");
+        StyleConstants.setFontSize(style, 12);
+        
         try {
-            SimpleAttributeSet timeStyle = new SimpleAttributeSet();
-            StyleConstants.setForeground(timeStyle, DiscordTheme.TEXT_MUTED);
-            StyleConstants.setFontSize(timeStyle, 12);
-            doc.insertString(doc.getLength(), time, timeStyle);
-        } catch (Exception e) {
-        }
-
-        try {
-            // Check for Username pattern: [User]: Message
-            if (msg.startsWith("[") && msg.contains("]: ")) {
-                int splitIndex = msg.indexOf("]: ") + 3;
-                String userPart = msg.substring(0, splitIndex);
-                String contentPart = msg.substring(splitIndex);
-
-                // Parse username from "[Name]: " to gen color
-                String msgUser = userPart.substring(1, userPart.length() - 3);
-
-                // Color for Username
-                StyleConstants.setForeground(style, getUniqueColor(msgUser));
-                StyleConstants.setBold(style, true);
-                doc.insertString(doc.getLength(), userPart, style);
-
-                // Color for Message Body (Normal Text)
-                StyleConstants.setForeground(style, DiscordTheme.TEXT_NORMAL);
-                StyleConstants.setBold(style, false);
-                doc.insertString(doc.getLength(), contentPart + "\n", style);
-            } else {
-                // Normal system message or other
-                doc.insertString(doc.getLength(), msg + "\n", style);
+            // MSN Style: 
+            // User says:
+            // Message
+            
+            if (msg.startsWith("[")) {
+                 // Try to parse [User]: Msg
+                 // If format is "[User]: Msg"
+                 int split = msg.indexOf("]:");
+                 if (split > 0) {
+                     String user = msg.substring(1, split); // [User
+                     if (user.startsWith("[")) user = user.substring(1);
+                     
+                     String content = msg.substring(split + 3); // ]: Msg...
+                     
+                     // Name Line
+                     SimpleAttributeSet nameStyle = new SimpleAttributeSet();
+                     StyleConstants.setForeground(nameStyle, MsnTheme.TEXT_MUTED);
+                     StyleConstants.setFontSize(nameStyle, 11);
+                     doc.insertString(doc.getLength(), user + " says:\n", nameStyle);
+                     
+                     // Message Line
+                     SimpleAttributeSet msgStyle = new SimpleAttributeSet();
+                     StyleConstants.setForeground(msgStyle, MsnTheme.TEXT_NORMAL);
+                     StyleConstants.setFontSize(msgStyle, 13);
+                     doc.insertString(doc.getLength(), "  " + content + "\n\n", msgStyle);
+                     return;
+                 }
             }
+            
+            // Fallback
+            StyleConstants.setForeground(style, MsnTheme.TEXT_NORMAL);
+            doc.insertString(doc.getLength(), msg + "\n", style);
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     private Color getUniqueColor(String name) {
-        int hash = name.hashCode();
-        // Generate bright pastel colors
-        return Color.getHSBColor((Math.abs(hash) % 360) / 360f, 0.7f, 1.0f);
+        return MsnTheme.TEXT_NORMAL; 
     }
 
     @Override
     public void onMessageReceived(String message) {
         SwingUtilities.invokeLater(() -> {
-            // Handle Authentication protocol
             if (message.trim().equals("AUTH_REQUIRED")) {
                 if (registerMode) {
                     client.sendMessage("/register " + username + " " + password);
@@ -273,36 +379,26 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
 
             if (message.startsWith("LOGIN_SUCCESS")) {
-                appendToChat("System: Logged in successfully!", DiscordTheme.ACTION_BG);
+                appendToChat("System: Logged in successfully!", Color.GRAY);
                 return;
             }
 
             if (message.equals("REGISTRATION_SUCCESS")) {
-                appendToChat("System: Account created! Logging in...", DiscordTheme.ACTION_BG);
+                appendToChat("System: Account created! Logging in...", Color.GRAY);
                 client.sendMessage("/login " + username + " " + password);
                 return;
             }
-
-            if (message.startsWith("LOGIN_FAIL")) {
-                JOptionPane.showMessageDialog(this, "Login Failed: " + message);
-                System.exit(0);
+            
+            if (message.startsWith("CHANNELLIST ")) {
+                String channels = message.substring("CHANNELLIST ".length());
+                channelListModel.clear();
+                for (String c : channels.split(",")) {
+                    if (!c.isEmpty())
+                        channelListModel.addElement("#" + c);
+                }
                 return;
             }
-
-            if (message.startsWith("REGISTRATION_FAIL")) {
-                JOptionPane.showMessageDialog(this, "Registration Failed (User exists?)");
-                System.exit(0);
-                return;
-            }
-
-            // Handle automatic login handshake (Legacy fallback)
-            if (message.trim().equalsIgnoreCase("Enter your username:")) {
-                System.out.println("Server asked for username, sending: " + username);
-                client.sendMessage(username);
-                return;
-            }
-
-            // Handle User List updates
+            
             if (message.startsWith("USERLIST " + currentChannel + " ")) {
                 String users = message.substring(("USERLIST " + currentChannel + " ").length());
                 userListModel.clear();
@@ -312,175 +408,61 @@ public class ChatGUI extends JFrame implements MessageListener {
                 }
                 return;
             }
-            
-            // Handle Channel List updates
-            if (message.startsWith("CHANNELLIST ")) {
-                String channels = message.substring("CHANNELLIST ".length());
-                channelListModel.clear();
-                for (String c : channels.split(",")) {
-                    if (!c.isEmpty())
-                        channelListModel.addElement("#" + c);
-                }
-                
-                // Restore selection
-                if (channelList != null && currentChannel != null) {
-                    int index = channelListModel.indexOf("#" + currentChannel);
-                    if (index != -1) {
-                         channelList.setSelectedIndex(index);
-                    }
-                }
-                return;
-            }
 
-            // Handle Channel Messages (CHANMSG <channel> <content>)
             if (message.startsWith("CHANMSG ")) {
                 String[] parts = message.split(" ", 3);
                 if (parts.length >= 3) {
                     String targetChannel = parts[1];
                     String content = parts[2];
-
-                    // Fix: Check for USERLIST inside CHANMSG
-                    if (content.startsWith("USERLIST ")) {
-                        // Only update UI if it's for the current channel
-                        if (targetChannel.equals(currentChannel)) {
-                            String users = content.substring("USERLIST ".length()); // "general user1,user2" ? No,
-                                                                                    // content is "USERLIST general
-                                                                                    // user1,user2" presumably?
-                            // Wait, Server sends: "USERLIST " + channel + " " + users
-                            // So content is "USERLIST channel users..."
-                            // Let's parse strictly.
-                            String prefix = "USERLIST " + targetChannel + " ";
-                            if (content.startsWith(prefix)) {
-                                String userString = content.substring(prefix.length());
-                                userListModel.clear();
-                                for (String u : userString.split(",")) {
-                                    if (!u.isEmpty())
-                                        userListModel.addElement(u);
-                                }
-                            }
-                        }
-                        return; // Do NOT show in chat
+                    
+                    if (content.startsWith("USERLIST ")) { 
+                        return; 
                     }
 
-                    // Ensure doc exists
                     if (!channelDocs.containsKey(targetChannel)) {
                         channelDocs.put(targetChannel, new DefaultStyledDocument());
                     }
-
-                    appendMessageToDoc(targetChannel, content);
+                    if (targetChannel.equals(currentChannel)) // Only append if active, otherwise background
+                        appendToChat(content, Color.BLACK); 
+                    // ToDo: Handle background notifications
                 }
                 return;
             }
 
-            // Global System Messages (LOG:)
-            if (message.startsWith("LOG:")) {
-                String logContent = message.substring(4);
-                if (logContent.startsWith("You are in channel:"))
-                    return;
-                if (logContent.startsWith("You joined channel:"))
-                    return;
-                appendToChat(logContent, DiscordTheme.TEXT_MUTED);
-                return;
-            }
-
-            // Other global messages
-            appendToChat(message, DiscordTheme.TEXT_NORMAL);
+            // Fallback
+            appendToChat(message, Color.BLACK);
         });
     }
 
-    // Refactored helper to append to SPECIFIC channel document
-    private void appendMessageToDoc(String channel, String msg) {
-        StyledDocument doc = channelDocs.get(channel);
-        if (doc == null)
-            return; // Should created above
-
-        SimpleAttributeSet style = new SimpleAttributeSet();
-
-        String timeToDisplay = java.time.LocalTime.now()
-                .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
-        String cleanMsg = msg;
-
-        // Check for HISTORY prefix: [HistoryTime] [User]: Msg
-        // Format from DB: HISTORY:[HH:mm:ss] [User]: Msg
-        if (msg.startsWith("HISTORY:")) {
-            try {
-                // Parse timestamp: HISTORY:[HH:mm:ss] ...
-                int endBracket = msg.indexOf("] ");
-                if (endBracket > 0) {
-                    timeToDisplay = msg.substring("HISTORY:[".length(), endBracket); // Extract HH:mm:ss
-                    cleanMsg = msg.substring(endBracket + 2); // Extract "[User]: Msg"
-                }
-            } catch (Exception e) {
-                // Fallback
-                cleanMsg = msg.substring("HISTORY:".length());
-            }
-        }
-
-        // Add Timestamp
-        String time = "[" + timeToDisplay + "] ";
-        try {
-            SimpleAttributeSet timeStyle = new SimpleAttributeSet();
-            StyleConstants.setForeground(timeStyle, DiscordTheme.TEXT_MUTED);
-            StyleConstants.setFontSize(timeStyle, 12);
-            doc.insertString(doc.getLength(), time, timeStyle);
-        } catch (Exception e) {
-        }
-
-        // Check for internal LOG inside CHANMSG (e.g. joins/leaves in that channel)
-        if (cleanMsg.startsWith("LOG:")) {
-            String logContent = cleanMsg.substring(4);
-            StyleConstants.setForeground(style, DiscordTheme.TEXT_MUTED);
-            try {
-                doc.insertString(doc.getLength(), logContent + "\n", style);
-            } catch (Exception e) {
-            }
-            return;
-        }
-
-        try {
-            if (cleanMsg.startsWith("[") && cleanMsg.contains("]: ")) {
-                int splitIndex = cleanMsg.indexOf("]: ") + 3;
-                String userPart = cleanMsg.substring(0, splitIndex);
-                String contentPart = cleanMsg.substring(splitIndex);
-
-                String msgUser = userPart.substring(1, userPart.length() - 3);
-
-                StyleConstants.setForeground(style, getUniqueColor(msgUser));
-                StyleConstants.setBold(style, true);
-                doc.insertString(doc.getLength(), userPart, style);
-
-                StyleConstants.setForeground(style, DiscordTheme.TEXT_NORMAL);
-                StyleConstants.setBold(style, false);
-                doc.insertString(doc.getLength(), contentPart + "\n", style);
-            } else {
-                StyleConstants.setForeground(style, DiscordTheme.TEXT_NORMAL);
-                doc.insertString(doc.getLength(), cleanMsg + "\n", style);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+    // Custom Gradient Panel for XP Headers
+    class XPGradientPanel extends JPanel {
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2d = (Graphics2D) g;
+            g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            int w = getWidth();
+            int h = getHeight();
+            GradientPaint gp = new GradientPaint(0, 0, MsnTheme.HEADER_TOP, 0, h, MsnTheme.HEADER_BOTTOM);
+            g2d.setPaint(gp);
+            g2d.fillRect(0, 0, w, h);
         }
     }
-
+    
     public static void main(String[] args) {
         System.out.println("Launching ChatGUI...");
         SwingUtilities.invokeLater(() -> {
             try {
-                // Show Login Dialog
+                // You might need to adjust this to launch straight away if testing without server
+                // But for now keeping standard flow
                 LoginDialog loginDlg = new LoginDialog(null);
                 loginDlg.setVisible(true);
 
                 if (loginDlg.isSucceeded()) {
-                    String username = loginDlg.getUsername();
-                    String password = loginDlg.getPassword();
-                    boolean registerMode = loginDlg.isRegisterMode();
-
-                    String host = loginDlg.getIP();
-                    int port = loginDlg.getPort();
-
-                    System.out.println("Creating GUI for " + username + " on " + host + ":" + port);
-                    new ChatGUI(host, port, username, password, registerMode);
+                    new ChatGUI(loginDlg.getIP(), loginDlg.getPort(), 
+                              loginDlg.getUsername(), loginDlg.getPassword(), 
+                              loginDlg.isRegisterMode());
                 } else {
-                    System.out.println("Login cancelled.");
                     System.exit(0);
                 }
             } catch (Exception e) {

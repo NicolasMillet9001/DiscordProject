@@ -3,6 +3,8 @@ package fr.unilasalle.chat.client.ui;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 public class LoginDialog extends JDialog {
     private JTextField usernameField;
@@ -13,81 +15,94 @@ public class LoginDialog extends JDialog {
     private boolean registerMode = false;
 
     public LoginDialog(Frame parent) {
-        super(parent, "Connect to Server", true);
+        super(parent, "MSN Messenger - Sign In", true);
 
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(DiscordTheme.BACKGROUND);
+        panel.setBackground(MsnTheme.BACKGROUND);
         panel.setBorder(new EmptyBorder(20, 20, 20, 20)); // Margin
         GridBagConstraints cs = new GridBagConstraints();
         cs.fill = GridBagConstraints.HORIZONTAL;
-
-        // --- Username ---
-        JLabel userLabel = new JLabel("Username:");
-        userLabel.setForeground(DiscordTheme.TEXT_NORMAL);
+        
+        // Header Graphic (Simulated with Label)
+        JLabel logo = new JLabel(".NET Messenger Service");
+        logo.setFont(new Font("Trebuchet MS", Font.BOLD, 16));
+        logo.setForeground(MsnTheme.HEADER_TOP);
         cs.gridx = 0;
         cs.gridy = 0;
+        cs.gridwidth = 3;
+        cs.insets = new Insets(0, 0, 15, 0);
+        panel.add(logo, cs);
+
+        // --- Username ---
+        JLabel userLabel = new JLabel("E-mail address:");
+        userLabel.setFont(MsnTheme.FONT_MAIN);
+        cs.gridx = 0;
+        cs.gridy = 1;
         cs.gridwidth = 1;
+        cs.insets = new Insets(5, 5, 5, 5);
         panel.add(userLabel, cs);
 
         usernameField = new JTextField(20);
         styleTextField(usernameField);
         cs.gridx = 1;
-        cs.gridy = 0;
+        cs.gridy = 1;
         cs.gridwidth = 2;
         panel.add(usernameField, cs);
 
         // --- Password ---
         JLabel passLabel = new JLabel("Password:");
-        passLabel.setForeground(DiscordTheme.TEXT_NORMAL);
+        passLabel.setFont(MsnTheme.FONT_MAIN);
         cs.gridx = 0;
-        cs.gridy = 1;
+        cs.gridy = 2;
         cs.gridwidth = 1;
         panel.add(passLabel, cs);
 
         passwordField = new JPasswordField(20);
         styleTextField(passwordField);
         cs.gridx = 1;
-        cs.gridy = 1;
+        cs.gridy = 2;
         cs.gridwidth = 2;
         panel.add(passwordField, cs);
 
         // --- Server IP ---
         JLabel ipLabel = new JLabel("Server IP:");
-        ipLabel.setForeground(DiscordTheme.TEXT_NORMAL);
+        ipLabel.setFont(MsnTheme.FONT_MAIN);
         cs.gridx = 0;
-        cs.gridy = 2;
+        cs.gridy = 3;
         cs.gridwidth = 1;
         panel.add(ipLabel, cs);
 
         ipField = new JTextField("172.21.200.34", 20);
         styleTextField(ipField);
         cs.gridx = 1;
-        cs.gridy = 2;
+        cs.gridy = 3;
         cs.gridwidth = 2;
         panel.add(ipField, cs);
 
         // --- Port ---
         JLabel portLabel = new JLabel("Port:");
-        portLabel.setForeground(DiscordTheme.TEXT_NORMAL);
+        portLabel.setFont(MsnTheme.FONT_MAIN);
         cs.gridx = 0;
-        cs.gridy = 3;
+        cs.gridy = 4;
         cs.gridwidth = 1;
         panel.add(portLabel, cs);
 
         portField = new JTextField("5001", 10);
         styleTextField(portField);
         cs.gridx = 1;
-        cs.gridy = 3;
+        cs.gridy = 4;
         cs.gridwidth = 2;
         panel.add(portField, cs);
 
         // --- Buttons ---
-        JButton btnLogin = new JButton("Login");
-        styleButton(btnLogin, DiscordTheme.ACTION_BG);
+        JButton btnLogin = new JButton("Sign In");
+        styleXPButton(btnLogin);
 
-        JButton btnRegister = new JButton("Register");
-        styleButton(btnRegister, DiscordTheme.HIGHLIGHT);
-
+        JButton btnRegister = new JButton("Get a .NET Passport (Register)");
+        styleXPButton(btnRegister);
+        // Make register look like a link or secondary button? 
+        // For now, standard button but maybe different text color?
+        
         btnLogin.addActionListener(e -> {
             if (validateInput()) {
                 registerMode = false;
@@ -105,17 +120,26 @@ public class LoginDialog extends JDialog {
         });
 
         JButton btnCancel = new JButton("Cancel");
-        styleButton(btnCancel, Color.GRAY);
+        styleXPButton(btnCancel);
         btnCancel.addActionListener(e -> dispose());
-
+        
         JPanel bp = new JPanel();
-        bp.setBackground(DiscordTheme.BACKGROUND);
+        bp.setBackground(MsnTheme.BACKGROUND);
         bp.add(btnLogin);
-        bp.add(btnRegister);
         bp.add(btnCancel);
+        
+        // Register button on separate row?
+        JPanel registerPanel = new JPanel();
+        registerPanel.setBackground(MsnTheme.BACKGROUND);
+        registerPanel.add(btnRegister);
 
         getContentPane().add(panel, BorderLayout.CENTER);
-        getContentPane().add(bp, BorderLayout.PAGE_END);
+        
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.add(bp, BorderLayout.CENTER);
+        bottomPanel.add(registerPanel, BorderLayout.SOUTH);
+        
+        getContentPane().add(bottomPanel, BorderLayout.PAGE_END);
 
         pack();
         setResizable(false);
@@ -134,21 +158,34 @@ public class LoginDialog extends JDialog {
     }
 
     private void styleTextField(JTextField tf) {
-        tf.setBackground(DiscordTheme.INPUT_BG);
-        tf.setForeground(DiscordTheme.TEXT_NORMAL);
-        tf.setCaretColor(Color.WHITE);
+        tf.setBackground(Color.WHITE);
+        tf.setForeground(MsnTheme.TEXT_NORMAL);
+        tf.setCaretColor(Color.BLACK);
+        tf.setFont(MsnTheme.FONT_MAIN);
         tf.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(DiscordTheme.SIDEBAR),
-                BorderFactory.createEmptyBorder(5, 5, 5, 5)));
+                BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR),
+                BorderFactory.createEmptyBorder(3, 3, 3, 3)));
     }
 
-    private void styleButton(JButton btn, Color bg) {
-        btn.setBackground(bg);
-        btn.setForeground(Color.WHITE);
+    private void styleXPButton(JButton btn) {
+        btn.setBackground(MsnTheme.ACTION_BG);
+        btn.setForeground(Color.BLACK);
         btn.setFocusPainted(false);
-        btn.setFont(new Font("SansSerif", Font.BOLD, 12));
-        btn.setOpaque(true);
-        btn.setBorderPainted(false);
+        btn.setFont(MsnTheme.FONT_MAIN);
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR),
+                new EmptyBorder(4, 10, 4, 10)
+        ));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        btn.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) {
+                btn.setBackground(MsnTheme.SELECTION_BG);
+            }
+            public void mouseExited(MouseEvent e) {
+                btn.setBackground(MsnTheme.ACTION_BG);
+            }
+        });
     }
 
     public String getUsername() {
