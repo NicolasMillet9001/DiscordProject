@@ -84,6 +84,14 @@ public class ChatGUI extends JFrame implements MessageListener {
         JLabel appTitle = new JLabel("MSN Messenger");
         appTitle.setFont(new Font("Trebuchet MS", Font.BOLD, 18));
         appTitle.setForeground(Color.WHITE);
+
+        // Add Logo if exists
+        ImageIcon logoIcon = new ImageIcon("media/msn.png");
+        if (logoIcon.getImageLoadStatus() == MediaTracker.COMPLETE) {
+            Image img = logoIcon.getImage().getScaledInstance(30, 30, Image.SCALE_SMOOTH);
+            appTitle.setIcon(new ImageIcon(img));
+        }
+
         header.add(appTitle, BorderLayout.WEST);
 
         JLabel userStatus = new JLabel("<html>Logged in as <b>" + username + "</b><br>(Online)</html>");
@@ -163,6 +171,30 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
         });
 
+        // Context Menu for Rename/Delete
+        channelList.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    int row = channelList.locationToIndex(e.getPoint());
+                    channelList.setSelectedIndex(row); // Select the item under cursor
+                    if (row != -1) {
+                        String selected = channelList.getSelectedValue().substring(1); // Remove #
+                        JPopupMenu menu = new JPopupMenu();
+
+                        JMenuItem renameItem = new JMenuItem("Renommer");
+                        renameItem.addActionListener(ev -> promptRenameChannel(selected));
+
+                        JMenuItem deleteItem = new JMenuItem("Supprimer conversation");
+                        deleteItem.addActionListener(ev -> promptDeleteChannel(selected));
+
+                        menu.add(renameItem);
+                        menu.add(deleteItem);
+                        menu.show(channelList, e.getX(), e.getY());
+                    }
+                }
+            }
+        });
+
         JScrollPane scroll = new JScrollPane(channelList);
         scroll.setBorder(null);
         sidebar.add(scroll, BorderLayout.CENTER);
@@ -196,6 +228,32 @@ public class ChatGUI extends JFrame implements MessageListener {
         if (name != null && !name.trim().isEmpty()) {
             name = name.trim().replace("#", "").replace(" ", "_"); // Sanitize
             switchChannel(name);
+        }
+    }
+
+    private void promptRenameChannel(String oldName) {
+        if (oldName.equalsIgnoreCase("general")) {
+            JOptionPane.showMessageDialog(this, "You cannot rename general channel.");
+            return;
+        }
+        String newName = JOptionPane.showInputDialog(this, "Rename " + oldName + " to:", "Rename Channel",
+                JOptionPane.PLAIN_MESSAGE);
+        if (newName != null && !newName.trim().isEmpty()) {
+            newName = newName.trim().replace("#", "").replace(" ", "_");
+            // Send rename command
+            client.sendMessage("/rename " + oldName + " " + newName);
+        }
+    }
+
+    private void promptDeleteChannel(String name) {
+        if (name.equalsIgnoreCase("general")) {
+            JOptionPane.showMessageDialog(this, "You cannot delete general channel.");
+            return;
+        }
+        int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete #" + name + "?",
+                "Confirm Delete", JOptionPane.YES_NO_OPTION);
+        if (confirm == JOptionPane.YES_OPTION) {
+            client.sendMessage("/delete " + name);
         }
     }
 
@@ -542,28 +600,28 @@ public class ChatGUI extends JFrame implements MessageListener {
                 if (parts.length >= 3) {
                     String targetChannel = parts[1];
                     String content = parts[2];
-                    
+
                     if (content.startsWith("USERLIST ")) {
                         // Parse USERLIST <channel> <users>
                         // content is "USERLIST channel user1,user2..."
                         String prefix = "USERLIST " + targetChannel + " ";
                         if (content.startsWith(prefix)) {
-                             String users = content.substring(prefix.length());
-                             // Only update if it matches current view
-                             if (targetChannel.equals(currentChannel)) {
-                                 userListModel.clear();
-                                 for (String u : users.split(",")) {
-                                     if (!u.isEmpty())
-                                         userListModel.addElement(u);
-                                 }
-                             }
+                            String users = content.substring(prefix.length());
+                            // Only update if it matches current view
+                            if (targetChannel.equals(currentChannel)) {
+                                userListModel.clear();
+                                for (String u : users.split(",")) {
+                                    if (!u.isEmpty())
+                                        userListModel.addElement(u);
+                                }
+                            }
                         }
-                        return; 
+                        return;
                     }
-                    
+
                     // Filter system join logs if they come as CHANMSG
                     if (content.startsWith("LOG:")) {
-                        return; 
+                        return;
                     }
 
                     if (!channelDocs.containsKey(targetChannel)) {
@@ -590,12 +648,14 @@ public class ChatGUI extends JFrame implements MessageListener {
             // Global System Messages (LOG:)
             if (message.startsWith("LOG:")) {
                 String logContent = message.substring(4);
-                if (logContent.trim().startsWith("You joined channel")) return;
-                if (logContent.trim().startsWith("You are in channel")) return;
+                if (logContent.trim().startsWith("You joined channel"))
+                    return;
+                if (logContent.trim().startsWith("You are in channel"))
+                    return;
                 // Don't show generic logs in chat for now to keep it clean
-                return; 
+                return;
             }
-            
+
             // Fallback
             appendToChat(message, Color.BLACK);
         });

@@ -69,6 +69,7 @@ public class ClientHandler extends Thread {
                             }
 
                             server.broadcastUserList(channel);
+                            writer.println("CHANNELLIST " + server.getChannelList()); // Send initial channel list
                             break;
                         } else {
                             writer.println("LOGIN_FAIL_ALREADY_CONNECTED");
@@ -165,6 +166,20 @@ public class ClientHandler extends Thread {
                 } else {
                     sendMessage("Fetching weather for " + parts[1] + "...");
                     sendMessage(WeatherService.getWeather(parts[1]));
+                }
+                break;
+            case "/delete":
+                if (parts.length < 2) {
+                    sendMessage("Syntax: /delete <channel>");
+                } else {
+                    server.deleteChannel(parts[1]);
+                }
+                break;
+            case "/rename":
+                if (parts.length < 3) {
+                    sendMessage("Syntax: /rename <oldName> <newName>");
+                } else {
+                    server.renameChannel(parts[1], parts[2]);
                 }
                 break;
             default:

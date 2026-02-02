@@ -142,6 +142,38 @@ public class Server {
         }
     }
 
+    public void deleteChannel(String channelName) {
+        if (knownChannels.contains(channelName)) {
+            knownChannels.remove(channelName);
+
+            // Move users in this channel to general or kick them
+            for (ClientHandler user : userThreads) {
+                if (user.getChannel().equalsIgnoreCase(channelName)) {
+                    user.sendMessage("LOG: Channel " + channelName + " has been deleted. Moving you to 'general'.");
+                    user.setChannel("general"); // Force move
+                    user.sendMessage("CHANMSG general You have been moved to general");
+                }
+            }
+
+            broadcastChannelList();
+        }
+    }
+
+    public void renameChannel(String oldName, String newName) {
+        if (knownChannels.contains(oldName) && !knownChannels.contains(newName)) {
+            knownChannels.remove(oldName);
+            knownChannels.add(newName);
+
+            for (ClientHandler user : userThreads) {
+                if (user.getChannel().equalsIgnoreCase(oldName)) {
+                    user.setChannel(newName);
+                    user.sendMessage("LOG: Channel " + oldName + " was renamed to " + newName);
+                }
+            }
+            broadcastChannelList();
+        }
+    }
+
     public String getChannelList() {
         return String.join(",", knownChannels);
     }
