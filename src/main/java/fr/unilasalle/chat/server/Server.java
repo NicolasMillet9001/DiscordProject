@@ -108,17 +108,17 @@ public class Server {
                 // Determine format. If we want it to look like a private chat in UI, we might
                 // use a specific protocol tag
                 // But for now, let's keep it compatible or use PRIVMSG tag
-                user.sendMessage("PRIVMSG " + sender.getUserName() + " " + message);
-                sender.sendMessage("PRIVMSG " + targetUserName + " " + message); // Echo back to sender for their UI
+                // Match ChatGUI expectations using new unambiguous commands
+                user.sendMessage("PRIVRECV " + sender.getUserName() + " " + message);
+                sender.sendMessage("PRIVSENT " + targetUserName + " " + message); // Echo back to sender
                 return;
             }
         }
         // If user not found (offline), we still saved it.
-        sender.sendMessage("User " + targetUserName + " is offline. Message saved.");
-        // We should probably echo it back to sender anyway so it shows in their chat
-        // window?
-        // Yes, otherwise they don't see what they sent.
-        sender.sendMessage("PRIVMSG " + targetUserName + " " + message);
+        // sender.sendMessage("User " + targetUserName + " is offline. Message saved.");
+        // // User requested to remove this pollution
+        // Echo it back to sender using PRIVSENT so it shows in their chat
+        sender.sendMessage("PRIVSENT " + targetUserName + " " + message);
     }
 
     void sendFriendRequestNotification(String target, String requester) {

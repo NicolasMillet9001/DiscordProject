@@ -121,6 +121,22 @@ public class ChatGUI extends JFrame implements MessageListener {
         add(header, BorderLayout.NORTH);
     }
 
+    private void processPrivateMessage(String remoteUser, String formattedContent) {
+        // Ensure doc exists
+        if (!channelDocs.containsKey("PRIV_" + remoteUser)) {
+            channelDocs.put("PRIV_" + remoteUser, (StyledDocument) kit.createDefaultDocument());
+        }
+
+        // If current view is this private chat, render locally
+        if (isPrivateMode && currentChannel.equals(remoteUser)) {
+            appendToChat(formattedContent, Color.BLACK);
+            scrollToBottom();
+        } else {
+            // In future, could append to background doc here using kit.insertHTML on doc
+            // object
+        }
+    }
+
     private void createSidebar(JPanel parent) {
         JPanel sidebar = new JPanel(new BorderLayout());
         sidebar.setBackground(MsnTheme.SIDEBAR);
@@ -309,6 +325,7 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
         }
         chatArea.setDocument(doc);
+        scrollToBottom();
     }
 
     private void switchPrivateChat(String friendName) {
@@ -324,6 +341,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         }
 
         chatArea.setDocument(doc);
+        scrollToBottom();
         // We might want to clear selection in channelList
         channelList.clearSelection();
     }
@@ -601,7 +619,8 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
 
             if (!text.startsWith("/")) {
-                appendToChat("[" + username + "]: " + payload.toString(), getUniqueColor(username));
+                // appendToChat("[" + username + "]: " + payload.toString(),
+                // getUniqueColor(username));
             }
             inputField.setText("");
         }
@@ -633,8 +652,17 @@ public class ChatGUI extends JFrame implements MessageListener {
                     String header = msg.substring(1, split); // "Private from User" or "Private to User"
                     String content = msg.substring(split + 3);
 
-                    html.append(
-                            "<div class='msg-block' style='background-color:#f0e6ff; border-left: 3px solid #800080; padding: 5px;'>");
+                    String style = "background-color:#f0e6ff; border-left: 3px solid #800080; padding: 5px;";
+                    // Right alignment for own messages (assuming username variable holds current
+                    // user)
+                    boolean isMe = header.contains(username);
+                    if (isMe) {
+                        style += " margin-left: 50px; text-align: right;";
+                    } else {
+                        style += " margin-right: 50px;";
+                    }
+
+                    html.append("<div class='msg-block' style='" + style + "'>");
                     html.append("<div class='header' style='color:#800080; font-weight:bold;'>").append(header)
                             .append(":</div>");
                     html.append("<div class='content' style='font-style:italic;'>").append(content).append("</div>");
@@ -682,13 +710,21 @@ public class ChatGUI extends JFrame implements MessageListener {
                         }
                     }
 
-                    String divStyle = "class='msg-block' style='color:" + fgHex + ";";
+                    String divStyle = "class='msg-block'";
+                    String styleAttr = "color:" + fgHex + ";";
                     if (bgHex != null) {
-                        divStyle += " background-color:" + bgHex + ";";
+                        styleAttr += " background-color:" + bgHex + ";";
                     }
-                    divStyle += "'";
 
-                    html.append("<div ").append(divStyle).append(">");
+                    // Check for own message
+                    boolean isMe = user.equalsIgnoreCase(username);
+                    if (isMe) {
+                        styleAttr += " text-align: right; margin-left: 50px;";
+                    } else {
+                        styleAttr += " margin-right: 50px;";
+                    }
+
+                    html.append("<div ").append(divStyle).append(" style='").append(styleAttr).append("'>");
                     html.append("<div class='header' style='color:#999;'>").append(timestamp).append(" - ").append(user)
                             .append(":</div>");
                     html.append("<div class='content'>").append(cleanContent).append("</div>");
@@ -839,56 +875,68 @@ public class ChatGUI extends JFrame implements MessageListener {
                 return;
             }
 
+            if (message.startsWith("PRIVRECV ")) {
+                String[] parts = message.split(" ", 3);
+                if (parts.length >= 3) {
+                    String sender = parts[1]; // The person sending to me
+                    String content = parts[2];
+
+                    String timestamp = new java.text.SimpleDateFormat("dd/MM/yy HH:mm:ss").format(new java.util.Date());
+                    String formatted = "[" + timestamp + "] [" + sender + "]: " + content;
+
+                    String remoteUser = sender;
+                    processPrivateMessage(remoteUser, formatted);
+                }
+                return;
+            }
+
+            if (message.startsWith("PRIVSENT ")) {
+                String[] parts = message.split(" ", 3);
+                if (parts.length >= 3) {
+                    String target = parts[1]; // The person I sent to
+                    String content = parts[2];
+
+                    String timestamp = new java.text.SimpleDateFormat("dd/MM/yy HH:mm:ss").format(new java.util.Date());
+                    String formatted = "[" + timestamp + "] [" + username + "]: " + content; // Using my username
+
+                    String remoteUser = target;
+                    processPrivateMessage(remoteUser, formatted);
+                }
+                return;
+            }
+
             if (message.startsWith("PRIVMSG ")) {
-                // PRIVMSG sender content
-                // But wait, content might have spaces.
+                // Maintained for HISTORY
                 String[] parts = message.split(" ", 3);
                 if (parts.length >= 3) {
                     String sender = parts[1];
                     String content = parts[2];
 
-                    // If I am the sender (echo), display in chat with receiver
-                    // But wait, server echoes "PRIVMSG <target> <content>" to sender?
-                    // In Server.java: sender.sendMessage("PRIVMSG " + targetUserName + " " +
-                    // message);
-                    // So if I send to Bob, I get "PRIVMSG Bob Hello".
-                    // If Bob sends to me, I get "PRIVMSG Bob Hello".
-                    // So "sender" here is actually "the other person" in the chat view context
-                    // usually?
-                    // Wait.
-                    // Case 1: Bob sends to Me. Server sends Me: "PRIVMSG Bob Hello".
-                    // My view: Chat with Bob.
-                    // Case 2: I send to Bob. Server sends Me: "PRIVMSG Bob Hello".
-                    // My view: Chat with Bob.
-
-                    // So specific logic:
-                    // The second arg is ALWAYS the "Partner" of the conversation in this protocol
-                    // design?
-                    // Let's check Server.java again.
-                    // user.sendMessage("PRIVMSG " + sender.getUserName() + " " + message); (To
-                    // Receiver)
-                    // sender.sendMessage("PRIVMSG " + targetUserName + " " + message); (To Sender)
-
+                    // Legacy logic...
                     // Yes! The 2nd arg is the "Remote User".
                     // For Receiver: Remote User is Sender.
                     // For Sender: Remote User is Target.
 
                     String remoteUser = sender; // It's actually the "context" name
 
-                    // Ensure doc exists
-                    if (!channelDocs.containsKey("PRIV_" + remoteUser)) {
-                        channelDocs.put("PRIV_" + remoteUser, (StyledDocument) kit.createDefaultDocument());
+                    // For history, content usually has [timestamp] [user]: ...
+                    // Just use content as is if it looks formatted, else format it
+                    String formatted = content;
+                    if (content.startsWith("HISTORY:")) {
+                        content = content.substring("HISTORY:".length());
+                        if (content.matches("^\\[\\d{2}:\\d{2}:\\d{2}\\] \\[.+?\\]: .+")) {
+                            formatted = content;
+                        } else {
+                            formatted = content;
+                        }
+                    } else {
+                        // Fallback for standard PRIVMSG if any
+                        String timestamp = new java.text.SimpleDateFormat("dd/MM/yy HH:mm:ss")
+                                .format(new java.util.Date());
+                        formatted = "[" + timestamp + "] [" + sender + "]: " + content;
                     }
 
-                    // If current view is this private chat, render locally
-                    if (isPrivateMode && currentChannel.equals(remoteUser)) {
-                        appendToChat(content, Color.BLACK);
-                    } else {
-                        StyledDocument doc = channelDocs.get("PRIV_" + remoteUser);
-                        if (doc != null) {
-                            // Suppressed
-                        }
-                    }
+                    processPrivateMessage(remoteUser, formatted);
                 }
                 return;
             }
