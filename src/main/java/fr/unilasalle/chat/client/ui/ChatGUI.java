@@ -14,6 +14,8 @@ import javax.swing.text.html.StyleSheet;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -432,9 +434,44 @@ public class ChatGUI extends JFrame implements MessageListener {
         userList.setForeground(MsnTheme.TEXT_NORMAL);
         userList.setFont(MsnTheme.FONT_MAIN);
         
+        // Add right-click context menu for private messages
+        userList.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    int row = userList.locationToIndex(e.getPoint());
+                    userList.setSelectedIndex(row);
+                    if (row != -1) {
+                        String selectedUser = userList.getSelectedValue();
+                        // Don't allow messaging yourself
+                        if (selectedUser.equals(username)) {
+                            return;
+                        }
+                        
+                        JPopupMenu menu = new JPopupMenu();
+                        JMenuItem msgItem = new JMenuItem("Send Private Message");
+                        msgItem.addActionListener(ev -> promptPrivateMessage(selectedUser));
+                        menu.add(msgItem);
+                        menu.show(userList, e.getX(), e.getY());
+                    }
+                }
+            }
+        });
+        
         userPanel.add(new JScrollPane(userList), BorderLayout.CENTER);
         
         add(userPanel, BorderLayout.EAST);
+    }
+
+    private void promptPrivateMessage(String targetUser) {
+        String message = JOptionPane.showInputDialog(this, 
+            "Enter your private message to " + targetUser + ":", 
+            "Private Message", 
+            JOptionPane.PLAIN_MESSAGE);
+        
+        if (message != null && !message.trim().isEmpty()) {
+            // Send private message using /msg command
+            client.sendMessage("/msg " + targetUser + " " + message);
+        }
     }
 
     private void sendMessage() {
@@ -481,12 +518,84 @@ public class ChatGUI extends JFrame implements MessageListener {
         try {
             StringBuilder html = new StringBuilder();
             
+            // Handle private messages specially
+            if (msg.startsWith("[Private from ") || msg.startsWith("[Private to ")) {
+                int split = msg.indexOf("]:");
+                if (split > 0) {
+                    String header = msg.substring(1, split); // "Private from User" or "Private to User"
+                    String content = msg.substring(split + 3);
+                    
+                    html.append("<div class='msg-block' style='background-color:#f0e6ff; border-left: 3px solid #800080; padding: 5px;'>");
+                    html.append("<div class='header' style='color:#800080; font-weight:bold;'>").append(header).append(":</div>");
+                    html.append("<div class='content' style='font-style:italic;'>").append(content).append("</div>");
+                    html.append("</div>");
+                    
+                    kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
+                    scrollToBottom();
+                    return;
+                }
+            }
+            
             if (msg.startsWith("[")) {
+                 // Check if this is a history message with timestamp: [dd/MM/yy HH:MM:SS] [user]: message
+                 if (msg.matches("^\\[\\d{2}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}\\] \\[.+?\\]: .+")) {
+                     // Extract timestamp, user, and content
+                     int firstClose = msg.indexOf("]");
+                     String timestamp = msg.substring(1, firstClose); // dd/MM/yy HH:MM:SS
+                     
+                     int secondOpen = msg.indexOf("[", firstClose);
+                     int secondClose = msg.indexOf("]:", secondOpen);
+                     String user = msg.substring(secondOpen + 1, secondClose);
+                     String content = msg.substring(secondClose + 3);
+                     
+                     // Parser for color codes
+                     String fgHex = "#000000";
+                     String bgHex = null;
+                     String cleanContent = content;
+                     
+                     while(cleanContent.startsWith("[c=#") || cleanContent.startsWith("[b=#")) {
+                         if (cleanContent.startsWith("[c=#")) {
+                             int end = cleanContent.indexOf("]");
+                             if (end > 0) {
+                                 fgHex = cleanContent.substring(3, end);
+                                 cleanContent = cleanContent.substring(end + 1);
+                             } else break;
+                         }
+                         else if (cleanContent.startsWith("[b=#")) {
+                             int end = cleanContent.indexOf("]");
+                             if (end > 0) {
+                                 bgHex = cleanContent.substring(3, end);
+                                 cleanContent = cleanContent.substring(end + 1);
+                             } else break;
+                         }
+                     }
+
+                     String divStyle = "class='msg-block' style='color:" + fgHex + ";";
+                     if (bgHex != null) {
+                         divStyle += " background-color:" + bgHex + ";";
+                     }
+                     divStyle += "'";
+
+                     html.append("<div ").append(divStyle).append(">");
+                     html.append("<div class='header' style='color:#999;'>").append(timestamp).append(" - ").append(user).append(":</div>");
+                     html.append("<div class='content'>").append(cleanContent).append("</div>");
+                     html.append("</div>");
+                     
+                     kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
+                     scrollToBottom();
+                     return;
+                 }
+                 
+                 // Regular message format: [user]: message
                  int split = msg.indexOf("]:");
                  if (split > 0) {
                      String user = msg.substring(1, split); 
                      if (user.startsWith("[")) user = user.substring(1);
                      String content = msg.substring(split + 3); 
+                     
+                     // Generate current timestamp
+                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yy HH:mm:ss");
+                     String timestamp = LocalDateTime.now().format(formatter);
                      
                      // Parser
                      String fgHex = "#000000";
@@ -517,7 +626,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                      divStyle += "'";
 
                      html.append("<div ").append(divStyle).append(">");
-                     html.append("<div class='header'>").append(user).append(" says:</div>");
+                     html.append("<div class='header' style='color:#999;'>").append(timestamp).append(" - ").append(user).append(":</div>");
                      html.append("<div class='content'>").append(cleanContent).append("</div>");
                      html.append("</div>");
                      

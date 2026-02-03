@@ -132,12 +132,25 @@ public class DatabaseService {
                 // Assuming SQLite returns "YYYY-MM-DD HH:MM:SS"
                 String timePart = ts;
                 try {
-                    // Quick parse to just get HH:mm:ss if possible
+                    // Parse to dd/MM/yy HH:mm:ss format
                     if (ts.contains(" ")) {
-                        timePart = ts.split(" ")[1]; // Get HH:mm:ss
-                        // Remove milliseconds if any
-                        if (timePart.contains("."))
-                            timePart = timePart.split("\\.")[0];
+                        String[] parts = ts.split(" ");
+                        String datePart = parts[0]; // YYYY-MM-DD
+                        String timePortion = parts[1]; // HH:MM:SS
+                        
+                        // Parse date
+                        String[] dateComponents = datePart.split("-");
+                        if (dateComponents.length == 3) {
+                            String year = dateComponents[0].substring(2); // Get last 2 digits of year
+                            String month = dateComponents[1];
+                            String day = dateComponents[2];
+                            
+                            // Remove milliseconds from time if any
+                            if (timePortion.contains("."))
+                                timePortion = timePortion.split("\\.")[0];
+                            
+                            timePart = day + "/" + month + "/" + year + " " + timePortion;
+                        }
                     }
                 } catch (Exception e) {
                 }
