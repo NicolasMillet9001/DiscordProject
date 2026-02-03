@@ -814,9 +814,15 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
 
             if (message.startsWith("FRIEND_REQ ")) {
-                // String requester = message.substring("FRIEND_REQ ".length());
-                // Show notification? Log is already sent.
-                // maybe sound
+                String requester = message.substring("FRIEND_REQ ".length());
+                int response = JOptionPane.showConfirmDialog(this,
+                        "You have a friend request from " + requester + ".\nDo you want to accept?",
+                        "Friend Request",
+                        JOptionPane.YES_NO_OPTION);
+
+                if (response == JOptionPane.YES_OPTION) {
+                    client.sendMessage("/friend accept " + requester);
+                }
                 return;
             }
 

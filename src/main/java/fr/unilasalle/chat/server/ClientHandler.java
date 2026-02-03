@@ -71,7 +71,7 @@ public class ClientHandler extends Thread {
                             // Send channel list and user list directly to this client
                             writer.println("CHANNELLIST " + server.getChannelList());
                             writer.println("USERLIST " + channel + " " + server.getUsersInChannel(channel));
-                            
+
                             // Broadcast updated user list to all users in the channel
                             server.broadcastUserList(channel);
                             writer.println("CHANNELLIST " + server.getChannelList()); // Send initial channel list
@@ -79,6 +79,12 @@ public class ClientHandler extends Thread {
                             // Send Friend List
                             java.util.List<String> friends = server.getDbService().getFriends(this.userName);
                             writer.println("FRIENDLIST " + String.join(",", friends));
+
+                            // Send Pending Friend Requests
+                            java.util.List<String> pending = server.getDbService().getPendingRequests(this.userName);
+                            for (String requester : pending) {
+                                writer.println("FRIEND_REQ " + requester);
+                            }
                             break;
                         } else {
                             writer.println("LOGIN_FAIL_ALREADY_CONNECTED");
