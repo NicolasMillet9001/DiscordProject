@@ -7,10 +7,10 @@ import javax.swing.*;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
-import javax.swing.text.DefaultStyledDocument;
-import javax.swing.text.SimpleAttributeSet;
-import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
+import javax.swing.text.html.HTMLDocument;
+import javax.swing.text.html.HTMLEditorKit;
+import javax.swing.text.html.StyleSheet;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -26,45 +26,55 @@ public class ChatGUI extends JFrame implements MessageListener {
     private JList<String> channelList;
 
     // History storage
-    private Map<String, StyledDocument> channelDocs = new HashMap<>();
+    private Map<String, HTMLDocument> channelDocs = new HashMap<>(); // Switched to HTMLDocument
     private String currentChannel = "general";
 
     private String username;
     private String password;
     private boolean registerMode;
+    private HTMLEditorKit kit; // Helper for inserting HTML
 
     public ChatGUI(String hostname, int port, String username, String password, boolean registerMode) {
         this.username = username;
         this.password = password;
         this.registerMode = registerMode;
-        System.out.println("Initializing ChatGUI Window (MSN Style)...");
+        System.out.println("Initializing ChatGUI Window (MSN Style HTML)...");
         setTitle("MSN Messenger - " + username);
         setSize(900, 650);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-
+        
         // XP Window Background
         JPanel mainContent = new JPanel(new BorderLayout());
         mainContent.setBackground(MsnTheme.BACKGROUND);
         mainContent.setBorder(BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR, 2));
         setContentPane(mainContent);
 
-        // Initialize default channel doc
-        channelDocs.put("general", new DefaultStyledDocument());
+        // Initialize Kit
+        kit = new HTMLEditorKit();
+        // Set basic font via CSS
+        StyleSheet styleSheet = kit.getStyleSheet();
+        styleSheet.addRule("body { font-family: Tahoma; font-size: 12px; margin: 0; padding: 0; }");
+        styleSheet.addRule(".msg-block { margin-bottom: 5px; padding: 5px; }");
+        styleSheet.addRule(".header { color: #777777; font-size: 10px; margin-bottom: 2px; }");
+        styleSheet.addRule(".content { font-size: 13px; margin-left: 10px; }");
 
+        // Initialize default channel doc
+        channelDocs.put("general", (HTMLDocument) kit.createDefaultDocument());
+        
         // Initialize Components
         createTopHeader();
-
+        
         JPanel splitPanel = new JPanel(new BorderLayout());
         splitPanel.setOpaque(false);
         splitPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
-
+        
         createSidebar(splitPanel);
         createChatArea(splitPanel);
-
+        
         add(splitPanel, BorderLayout.CENTER);
-
-        createUserList();
+        
+        createUserList(); 
 
         // Connect to Client
         System.out.println("Connecting to Server...");
@@ -74,7 +84,8 @@ public class ChatGUI extends JFrame implements MessageListener {
         System.out.println("Window set to visible.");
         setVisible(true);
     }
-
+    
+    // ... [Header creation]
     private void createTopHeader() {
         XPGradientPanel header = new XPGradientPanel();
         header.setLayout(new BorderLayout());
@@ -93,7 +104,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         }
 
         header.add(appTitle, BorderLayout.WEST);
-
+        
         JLabel userStatus = new JLabel("<html>Logged in as <b>" + username + "</b><br>(Online)</html>");
         userStatus.setFont(MsnTheme.FONT_MAIN);
         userStatus.setForeground(Color.WHITE);
@@ -112,7 +123,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         // Title Panel
         JPanel titlePanel = new JPanel(new BorderLayout());
         titlePanel.setBackground(MsnTheme.SIDEBAR);
-
+        
         JLabel title = new JLabel(" Conversations");
         title.setFont(MsnTheme.FONT_BOLD);
         title.setForeground(MsnTheme.HEADER_TOP);
@@ -123,16 +134,15 @@ public class ChatGUI extends JFrame implements MessageListener {
         styleXPButton(addBtn);
         addBtn.setPreferredSize(new Dimension(70, 25));
         addBtn.addActionListener(e -> promptCreateChannel());
-
+        
         JPanel btnContainer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         btnContainer.setOpaque(false);
         btnContainer.add(addBtn);
         titlePanel.add(btnContainer, BorderLayout.EAST);
-
+        
         sidebar.add(titlePanel, BorderLayout.NORTH);
 
         channelListModel = new DefaultListModel<>();
-        // Channels will be populated by server
 
         channelList = new JList<>(channelListModel);
         channelList.setBackground(MsnTheme.SIDEBAR);
@@ -141,20 +151,18 @@ public class ChatGUI extends JFrame implements MessageListener {
         channelList.setSelectionForeground(MsnTheme.TEXT_NORMAL);
         channelList.setFont(MsnTheme.FONT_MAIN);
         channelList.setFixedCellHeight(25);
-
+        
         // Custom Renderer for XP look
         channelList.setCellRenderer(new DefaultListCellRenderer() {
             @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
-                    boolean cellHasFocus) {
-                JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected,
-                        cellHasFocus);
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
                 label.setBorder(new EmptyBorder(2, 5, 2, 5));
                 if (isSelected) {
                     label.setBackground(MsnTheme.SELECTION_BG);
                     label.setBorder(BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR));
                 }
-                label.setIcon(UIManager.getIcon("FileView.fileIcon")); // Generic icon place holder
+                label.setIcon(UIManager.getIcon("FileView.fileIcon"));
                 return label;
             }
         });
@@ -163,7 +171,7 @@ public class ChatGUI extends JFrame implements MessageListener {
             if (!e.getValueIsAdjusting()) {
                 String selected = channelList.getSelectedValue();
                 if (selected != null) {
-                    String cleanName = selected.substring(1); // Remove #
+                    String cleanName = selected.substring(1); 
                     if (!cleanName.equals(currentChannel)) {
                         switchChannel(cleanName);
                     }
@@ -198,7 +206,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         JScrollPane scroll = new JScrollPane(channelList);
         scroll.setBorder(null);
         sidebar.add(scroll, BorderLayout.CENTER);
-
+        
         parent.add(sidebar, BorderLayout.WEST);
     }
 
@@ -206,25 +214,17 @@ public class ChatGUI extends JFrame implements MessageListener {
         client.sendMessage("/join " + newChannel);
         currentChannel = newChannel;
 
-        StyledDocument doc = channelDocs.get(newChannel);
+        HTMLDocument doc = channelDocs.get(newChannel);
         if (doc == null) {
-            doc = new DefaultStyledDocument();
+            doc = (HTMLDocument) kit.createDefaultDocument();
             channelDocs.put(newChannel, doc);
-        } else {
-            // Clear existing document to prevent duplication of history
-            try {
-                doc.remove(0, doc.getLength());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
 
         chatArea.setDocument(doc);
     }
 
     private void promptCreateChannel() {
-        String name = JOptionPane.showInputDialog(this, "Enter conversation name:", "Start Conversation",
-                JOptionPane.PLAIN_MESSAGE);
+        String name = JOptionPane.showInputDialog(this, "Enter conversation name:", "Start Conversation", JOptionPane.PLAIN_MESSAGE);
         if (name != null && !name.trim().isEmpty()) {
             name = name.trim().replace("#", "").replace(" ", "_"); // Sanitize
             switchChannel(name);
@@ -273,10 +273,14 @@ public class ChatGUI extends JFrame implements MessageListener {
         chatPanel.add(chatHeader, BorderLayout.NORTH);
 
         chatArea = new JTextPane();
+        chatArea.setEditorKit(kit); // Use HTML Kit
+        // chatArea.setContentType("text/html"); // Handled by setEditorKit
         chatArea.setEditable(false);
         chatArea.setBackground(Color.WHITE);
-        chatArea.setForeground(MsnTheme.TEXT_NORMAL);
+        // Force font style
+        chatArea.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE); 
         chatArea.setFont(MsnTheme.FONT_MAIN);
+        
         chatArea.setDocument(channelDocs.get("general")); // Set initial doc
 
         JScrollPane scrollPane = new JScrollPane(chatArea);
@@ -284,7 +288,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         chatPanel.add(scrollPane, BorderLayout.CENTER);
 
-        // Input Area (Resembles MSN Input box)
+        // Input Area
         JPanel inputPanel = new JPanel(new BorderLayout());
         inputPanel.setBackground(MsnTheme.BACKGROUND);
         inputPanel.setBorder(new EmptyBorder(5, 0, 0, 0));
@@ -293,7 +297,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         // Toolbar
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 0));
         toolbar.setBackground(MsnTheme.BACKGROUND);
-
+        
         JButton colorBtn = new JButton("A");
         colorBtn.setFont(new Font("Georgia", Font.BOLD, 14));
         colorBtn.setForeground(Color.BLACK);
@@ -308,10 +312,10 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
         });
 
-        JButton bgBtn = new JButton("B"); // Using B to represent background
+        JButton bgBtn = new JButton("B"); 
         bgBtn.setFont(new Font("Arial", Font.BOLD, 14));
         bgBtn.setBackground(Color.LIGHT_GRAY);
-        bgBtn.setForeground(Color.WHITE);
+        bgBtn.setForeground(Color.WHITE); 
         bgBtn.setToolTipText("Change Background Color");
         styleToolbarButton(bgBtn);
         bgBtn.addActionListener(e -> {
@@ -322,53 +326,54 @@ public class ChatGUI extends JFrame implements MessageListener {
                 inputField.setBackground(newColor);
             }
         });
-
+        
         JButton resetBtn = new JButton("x");
         resetBtn.setFont(new Font("Arial", Font.PLAIN, 12));
         resetBtn.setToolTipText("Reset Styles");
         styleToolbarButton(resetBtn);
         resetBtn.addActionListener(e -> {
-            msgTextColor = Color.BLACK;
-            msgBgColor = Color.WHITE;
-            colorBtn.setForeground(msgTextColor);
-            bgBtn.setBackground(Color.LIGHT_GRAY);
-            inputField.setForeground(msgTextColor);
-            inputField.setBackground(msgBgColor);
+             msgTextColor = Color.BLACK;
+             msgBgColor = Color.WHITE;
+             colorBtn.setForeground(msgTextColor);
+             bgBtn.setBackground(Color.LIGHT_GRAY);
+             inputField.setForeground(msgTextColor);
+             inputField.setBackground(msgBgColor);
         });
 
         toolbar.add(colorBtn);
         toolbar.add(bgBtn);
         toolbar.add(resetBtn);
         inputPanel.add(toolbar, BorderLayout.NORTH);
-
+        
         inputField = new JTextField();
         inputField.setBackground(Color.WHITE);
         inputField.setForeground(MsnTheme.TEXT_NORMAL);
         inputField.setFont(MsnTheme.FONT_MAIN);
         inputField.setBorder(new CompoundBorder(
                 BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR),
-                new EmptyBorder(5, 5, 5, 5)));
+                new EmptyBorder(5, 5, 5, 5)
+        ));
         inputField.addActionListener(e -> sendMessage());
 
         inputPanel.add(inputField, BorderLayout.CENTER);
-
+        
         JButton sendBtn = new JButton("Send");
         styleXPButton(sendBtn);
         sendBtn.setPreferredSize(new Dimension(70, 0));
         sendBtn.addActionListener(e -> sendMessage());
-
+        
         JPanel sendPanel = new JPanel(new BorderLayout());
         sendPanel.setOpaque(false);
         sendPanel.setBorder(new EmptyBorder(0, 5, 0, 0));
         sendPanel.add(sendBtn, BorderLayout.CENTER);
-
+        
         inputPanel.add(sendPanel, BorderLayout.EAST);
-
+        
         chatPanel.add(inputPanel, BorderLayout.SOUTH);
 
         parent.add(chatPanel, BorderLayout.CENTER);
     }
-
+    
     // Style helper for toolbar buttons
     private void styleToolbarButton(JButton btn) {
         btn.setPreferredSize(new Dimension(25, 25));
@@ -376,35 +381,33 @@ public class ChatGUI extends JFrame implements MessageListener {
         btn.setContentAreaFilled(false);
         btn.setFocusPainted(false);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.setOpaque(true);
-
+        btn.setOpaque(true); 
+        
         btn.addMouseListener(new MouseAdapter() {
             public void mouseEntered(MouseEvent e) {
                 btn.setBorder(BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR));
             }
-
             public void mouseExited(MouseEvent e) {
                 btn.setBorder(BorderFactory.createEmptyBorder());
             }
         });
     }
-
+    
     // Style helper for buttons
     private void styleXPButton(JButton btn) {
         btn.setBackground(MsnTheme.ACTION_BG);
         btn.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR),
-                new EmptyBorder(2, 5, 2, 5)));
+                new EmptyBorder(2, 5, 2, 5)
+        ));
         btn.setFocusPainted(false);
         btn.setFont(MsnTheme.FONT_MAIN);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        // Simple hover effect
+        
         btn.addMouseListener(new MouseAdapter() {
             public void mouseEntered(MouseEvent e) {
                 btn.setBackground(MsnTheme.SELECTION_BG);
             }
-
             public void mouseExited(MouseEvent e) {
                 btn.setBackground(MsnTheme.ACTION_BG);
             }
@@ -428,38 +431,32 @@ public class ChatGUI extends JFrame implements MessageListener {
         userList.setBackground(MsnTheme.SIDEBAR);
         userList.setForeground(MsnTheme.TEXT_NORMAL);
         userList.setFont(MsnTheme.FONT_MAIN);
-
+        
         userPanel.add(new JScrollPane(userList), BorderLayout.CENTER);
-
+        
         add(userPanel, BorderLayout.EAST);
     }
 
     private void sendMessage() {
         String text = inputField.getText();
         if (!text.isEmpty()) {
-
-            // Construct message with style meta-data if needed
-            // Format: [c=#RRGGBB][b=#RRGGBB]Message content
             StringBuilder payload = new StringBuilder();
-
+            
             if (!msgTextColor.equals(Color.BLACK)) {
-                String hex = String.format("#%02x%02x%02x", msgTextColor.getRed(), msgTextColor.getGreen(),
-                        msgTextColor.getBlue());
+                String hex = String.format("#%02x%02x%02x", msgTextColor.getRed(), msgTextColor.getGreen(), msgTextColor.getBlue());
                 payload.append("[c=").append(hex).append("]");
             }
-
+            
             if (!msgBgColor.equals(Color.WHITE)) {
-                String hex = String.format("#%02x%02x%02x", msgBgColor.getRed(), msgBgColor.getGreen(),
-                        msgBgColor.getBlue());
-                payload.append("[b=").append(hex).append("]");
+                 String hex = String.format("#%02x%02x%02x", msgBgColor.getRed(), msgBgColor.getGreen(), msgBgColor.getBlue());
+                 payload.append("[b=").append(hex).append("]");
             }
-
+            
             payload.append(text);
-
+            
             client.sendMessage(payload.toString());
-
+            
             if (!text.startsWith("/")) {
-                // Optimistic render
                 appendToChat("[" + username + "]: " + payload.toString(), getUniqueColor(username));
             }
             inputField.setText("");
@@ -467,89 +464,84 @@ public class ChatGUI extends JFrame implements MessageListener {
     }
 
     // Helper to append colored text
-    // Colors
     private Color msgTextColor = Color.BLACK;
     private Color msgBgColor = Color.WHITE;
 
-    // Helper to append colored text
+    // Helper to append colored text using HTML
     private void appendToChat(String msg, Color c) {
-        StyledDocument doc = chatArea.getStyledDocument();
-
-        SimpleAttributeSet style = new SimpleAttributeSet();
-        StyleConstants.setFontFamily(style, "Tahoma");
-        StyleConstants.setFontSize(style, 12);
-
+        HTMLDocument doc = (HTMLDocument) chatArea.getDocument();
+        // Ensure we handle current channel doc correctly if we are in background?
+        // Actually chatArea.getDocument() is current channel. 
+        // If msg is for current channel we use chatArea, else we get from map.
+        // But for simplicity in this method provided, we assume it's for current doc or we fetch from map?
+        // The original logic fetched 'doc = chatArea.getStyledDocument()'. 
+        // Logic in onMessageReceived handles 'if target==current append else...'
+        // So we strictly append to 'doc' which is current.
+        
         try {
-            // MSN Style Parsing
+            StringBuilder html = new StringBuilder();
+            
             if (msg.startsWith("[")) {
-                int split = msg.indexOf("]:");
-                if (split > 0) {
-                    String user = msg.substring(1, split);
-                    if (user.startsWith("["))
-                        user = user.substring(1);
+                 int split = msg.indexOf("]:");
+                 if (split > 0) {
+                     String user = msg.substring(1, split); 
+                     if (user.startsWith("[")) user = user.substring(1);
+                     String content = msg.substring(split + 3); 
+                     
+                     // Parser
+                     String fgHex = "#000000";
+                     String bgHex = null;
+                     String cleanContent = content;
+                     
+                     while(cleanContent.startsWith("[c=#") || cleanContent.startsWith("[b=#")) {
+                         if (cleanContent.startsWith("[c=#")) {
+                             int end = cleanContent.indexOf("]");
+                             if (end > 0) {
+                                 fgHex = cleanContent.substring(3, end);
+                                 cleanContent = cleanContent.substring(end + 1);
+                             } else break;
+                         }
+                         else if (cleanContent.startsWith("[b=#")) {
+                             int end = cleanContent.indexOf("]");
+                             if (end > 0) {
+                                 bgHex = cleanContent.substring(3, end);
+                                 cleanContent = cleanContent.substring(end + 1);
+                             } else break;
+                         }
+                     }
 
-                    String content = msg.substring(split + 3);
+                     String divStyle = "class='msg-block' style='color:" + fgHex + ";";
+                     if (bgHex != null) {
+                         divStyle += " background-color:" + bgHex + ";";
+                     }
+                     divStyle += "'";
 
-                    // Name Line
-                    SimpleAttributeSet nameStyle = new SimpleAttributeSet();
-                    StyleConstants.setForeground(nameStyle, MsnTheme.TEXT_MUTED);
-                    StyleConstants.setFontSize(nameStyle, 11);
-                    doc.insertString(doc.getLength(), user + " says:\n", nameStyle);
-
-                    // Message Line Parsing
-                    Color fg = MsnTheme.TEXT_NORMAL;
-                    Color bg = null;
-                    String cleanContent = content;
-
-                    // Simple Iterative Parser for [c=#...][b=#...] tags
-                    while (cleanContent.startsWith("[c=#") || cleanContent.startsWith("[b=#")) {
-                        if (cleanContent.startsWith("[c=#")) {
-                            int end = cleanContent.indexOf("]");
-                            if (end > 0) {
-                                String hex = cleanContent.substring(3, end);
-                                try {
-                                    fg = Color.decode(hex);
-                                } catch (Exception e) {
-                                }
-                                cleanContent = cleanContent.substring(end + 1);
-                            } else
-                                break;
-                        } else if (cleanContent.startsWith("[b=#")) {
-                            int end = cleanContent.indexOf("]");
-                            if (end > 0) {
-                                String hex = cleanContent.substring(3, end);
-                                try {
-                                    bg = Color.decode(hex);
-                                } catch (Exception e) {
-                                }
-                                cleanContent = cleanContent.substring(end + 1);
-                            } else
-                                break;
-                        }
-                    }
-
-                    SimpleAttributeSet msgStyle = new SimpleAttributeSet();
-                    StyleConstants.setForeground(msgStyle, fg);
-                    if (bg != null)
-                        StyleConstants.setBackground(msgStyle, bg);
-                    StyleConstants.setFontSize(msgStyle, 13);
-
-                    doc.insertString(doc.getLength(), "  " + cleanContent + "\n\n", msgStyle);
-                    return;
-                }
+                     html.append("<div ").append(divStyle).append(">");
+                     html.append("<div class='header'>").append(user).append(" says:</div>");
+                     html.append("<div class='content'>").append(cleanContent).append("</div>");
+                     html.append("</div>");
+                     
+                     kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
+                     scrollToBottom();
+                     return;
+                 }
             }
-
-            // Fallback
-            StyleConstants.setForeground(style, MsnTheme.TEXT_NORMAL);
-            doc.insertString(doc.getLength(), msg + "\n", style);
-
+            
+            // Fallback for simple messages (System logs etc)
+            String safeMsg = msg.replace("<", "&lt;").replace(">", "&gt;");
+            kit.insertHTML(doc, doc.getLength(), "<div style='color:gray; font-style:italic;'>" + safeMsg + "</div>", 0, 0, null);
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+    
+    private void scrollToBottom() {
+        SwingUtilities.invokeLater(() -> chatArea.setCaretPosition(chatArea.getDocument().getLength()));
+    }
 
     private Color getUniqueColor(String name) {
-        return MsnTheme.TEXT_NORMAL;
+        return MsnTheme.TEXT_NORMAL; 
     }
 
     @Override
@@ -574,7 +566,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                 client.sendMessage("/login " + username + " " + password);
                 return;
             }
-
+            
             if (message.startsWith("CHANNELLIST ")) {
                 String channels = message.substring("CHANNELLIST ".length());
                 channelListModel.clear();
@@ -584,7 +576,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                 }
                 return;
             }
-
+            
             if (message.startsWith("USERLIST " + currentChannel + " ")) {
                 String users = message.substring(("USERLIST " + currentChannel + " ").length());
                 userListModel.clear();
@@ -602,9 +594,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                     String content = parts[2];
 
                     if (content.startsWith("USERLIST ")) {
-                        // Parse USERLIST <channel> <users>
-                        // content is "USERLIST channel user1,user2..."
-                        String prefix = "USERLIST " + targetChannel + " ";
+                         String prefix = "USERLIST " + targetChannel + " ";
                         if (content.startsWith(prefix)) {
                             String users = content.substring(prefix.length());
                             // Only update if it matches current view
@@ -625,10 +615,10 @@ public class ChatGUI extends JFrame implements MessageListener {
                     }
 
                     if (!channelDocs.containsKey(targetChannel)) {
-                        channelDocs.put(targetChannel, new DefaultStyledDocument());
+                         // Create HTML doc!
+                        channelDocs.put(targetChannel, (HTMLDocument) chatArea.getEditorKit().createDefaultDocument());
                     }
                     if (targetChannel.equals(currentChannel)) {
-                        // Only append if active, otherwise background
                         if (content.startsWith("HISTORY:")) {
                             try {
                                 String clean = content.substring("HISTORY:".length());
@@ -640,12 +630,10 @@ public class ChatGUI extends JFrame implements MessageListener {
                             appendToChat(content, Color.BLACK);
                         }
                     }
-                    // ToDo: Handle background notifications
                 }
                 return;
             }
 
-            // Global System Messages (LOG:)
             if (message.startsWith("LOG:")) {
                 String logContent = message.substring(4);
                 if (logContent.trim().startsWith("You joined channel"))
@@ -661,7 +649,6 @@ public class ChatGUI extends JFrame implements MessageListener {
         });
     }
 
-    // Custom Gradient Panel for XP Headers
     class XPGradientPanel extends JPanel {
         @Override
         protected void paintComponent(Graphics g) {
@@ -675,21 +662,18 @@ public class ChatGUI extends JFrame implements MessageListener {
             g2d.fillRect(0, 0, w, h);
         }
     }
-
+    
     public static void main(String[] args) {
         System.out.println("Launching ChatGUI...");
         SwingUtilities.invokeLater(() -> {
             try {
-                // You might need to adjust this to launch straight away if testing without
-                // server
-                // But for now keeping standard flow
                 LoginDialog loginDlg = new LoginDialog(null);
                 loginDlg.setVisible(true);
 
                 if (loginDlg.isSucceeded()) {
-                    new ChatGUI(loginDlg.getIP(), loginDlg.getPort(),
-                            loginDlg.getUsername(), loginDlg.getPassword(),
-                            loginDlg.isRegisterMode());
+                    new ChatGUI(loginDlg.getIP(), loginDlg.getPort(), 
+                              loginDlg.getUsername(), loginDlg.getPassword(), 
+                              loginDlg.isRegisterMode());
                 } else {
                     System.exit(0);
                 }
