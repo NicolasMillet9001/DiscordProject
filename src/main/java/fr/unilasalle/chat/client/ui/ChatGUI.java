@@ -7,7 +7,7 @@ import javax.swing.*;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
-import javax.swing.text.DefaultStyledDocument;
+import javax.swing.text.Document;
 import javax.swing.text.StyledDocument;
 import javax.swing.text.html.HTMLDocument;
 import javax.swing.text.html.HTMLEditorKit;
@@ -244,7 +244,8 @@ public class ChatGUI extends JFrame implements MessageListener {
                     label.setBorder(BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR));
                 }
                 // Use a different icon for users (maybe same for now or load user.png)
-                label.setIcon(UIManager.getIcon("FileView.computerIcon"));
+                // label.setIcon(UIManager.getIcon("FileView.computerIcon"));
+                label.setIcon(null); // No icon for now, or maybe a user emoji/icon later
                 return label;
             }
         });
@@ -298,7 +299,7 @@ public class ChatGUI extends JFrame implements MessageListener {
 
         StyledDocument doc = channelDocs.get(newChannel);
         if (doc == null) {
-            doc = new DefaultStyledDocument();
+            doc = (StyledDocument) kit.createDefaultDocument();
             channelDocs.put(newChannel, doc);
         } else {
             try {
@@ -316,16 +317,15 @@ public class ChatGUI extends JFrame implements MessageListener {
 
         StyledDocument doc = channelDocs.get("PRIV_" + friendName);
         if (doc == null) {
-            doc = new DefaultStyledDocument();
+            doc = (StyledDocument) kit.createDefaultDocument();
             channelDocs.put("PRIV_" + friendName, doc);
+            // Fetch history only on first load
+            client.sendMessage("/privhistory " + friendName);
         }
 
         chatArea.setDocument(doc);
         // We might want to clear selection in channelList
         channelList.clearSelection();
-
-        // Fetch history
-        client.sendMessage("/privhistory " + friendName);
     }
 
     private void promptCreateChannel() {
@@ -814,6 +814,7 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
 
             if (message.startsWith("FRIEND_REQ ")) {
+                System.out.println("DEBUG: Received FRIEND_REQ: " + message);
                 String requester = message.substring("FRIEND_REQ ".length());
                 int response = JOptionPane.showConfirmDialog(this,
                         "You have a friend request from " + requester + ".\nDo you want to accept?",
@@ -876,7 +877,7 @@ public class ChatGUI extends JFrame implements MessageListener {
 
                     // Ensure doc exists
                     if (!channelDocs.containsKey("PRIV_" + remoteUser)) {
-                        channelDocs.put("PRIV_" + remoteUser, new DefaultStyledDocument());
+                        channelDocs.put("PRIV_" + remoteUser, (StyledDocument) kit.createDefaultDocument());
                     }
 
                     // If current view is this private chat, render locally

@@ -142,6 +142,16 @@ public class Server {
         }
     }
 
+    void sendFriendListUpdate(String username) {
+        for (ClientHandler user : userThreads) {
+            if (user.getUserName().equalsIgnoreCase(username)) {
+                java.util.List<String> friends = dbService.getFriends(username);
+                user.sendMessage("FRIENDLIST " + String.join(",", friends));
+                return;
+            }
+        }
+    }
+
     String getUsersInChannel(String channel) {
         StringBuilder sb = new StringBuilder();
         for (ClientHandler user : userThreads) {

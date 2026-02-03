@@ -232,9 +232,8 @@ public class ClientHandler extends Thread {
                             if (server.getDbService().acceptFriend(this.userName, target)) {
                                 sendMessage("You are now friends with " + target);
                                 server.sendFriendAcceptNotification(target, this.userName);
-                                // Refresh lists for both? The client needs to know.
-                                // We can send FRIENDLIST update command to both
-                                // Ideally we should have a method to resync friend list
+                                server.sendFriendListUpdate(target);
+                                server.sendFriendListUpdate(this.userName);
                             } else {
                                 sendMessage("Could not accept request (no pending request found).");
                             }
@@ -267,6 +266,7 @@ public class ClientHandler extends Thread {
                 sendMessage("Unknown command: " + cmd);
                 break;
         }
+
     }
 
     /**
