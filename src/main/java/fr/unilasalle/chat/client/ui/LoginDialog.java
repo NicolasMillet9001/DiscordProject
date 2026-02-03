@@ -24,7 +24,7 @@ public class LoginDialog extends JDialog {
         cs.fill = GridBagConstraints.HORIZONTAL;
         
         // Header Graphic (Simulated with Label)
-        JLabel logo = new JLabel(".NET Messenger Service");
+        JLabel logo = new JLabel("MSN Service");
         logo.setFont(new Font("Trebuchet MS", Font.BOLD, 16));
         logo.setForeground(MsnTheme.HEADER_TOP);
         cs.gridx = 0;
@@ -72,7 +72,7 @@ public class LoginDialog extends JDialog {
         cs.gridwidth = 1;
         panel.add(ipLabel, cs);
 
-        ipField = new JTextField("localhost", 20);
+        ipField = new JTextField("172.21.200.32", 20);
         styleTextField(ipField);
         cs.gridx = 1;
         cs.gridy = 3;
@@ -95,10 +95,10 @@ public class LoginDialog extends JDialog {
         panel.add(portField, cs);
 
         // --- Buttons ---
-        JButton btnLogin = new JButton("Sign In");
+        JButton btnLogin = new JButton("Log In");
         styleXPButton(btnLogin);
 
-        JButton btnRegister = new JButton("Get a .NET Passport (Register)");
+        JButton btnRegister = new JButton("Register");
         styleXPButton(btnRegister);
         // Make register look like a link or secondary button? 
         // For now, standard button but maybe different text color?
