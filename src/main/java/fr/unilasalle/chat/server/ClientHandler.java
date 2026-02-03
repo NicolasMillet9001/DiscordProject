@@ -108,7 +108,9 @@ public class ClientHandler extends Thread {
                     if (clientMessage.startsWith("/")) {
                         handleCommand(clientMessage);
                     } else {
-                        serverMessage = "[" + this.userName + "]: " + clientMessage;
+                        String time = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")
+                                .format(java.time.LocalDateTime.now());
+                        serverMessage = "[" + time + "] [" + this.userName + "]: " + clientMessage;
                         server.broadcastToChannel(channel, serverMessage, this);
                     }
                 } else {
