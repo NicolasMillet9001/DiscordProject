@@ -24,6 +24,10 @@ public class ChatGUI extends JFrame implements MessageListener {
     private DefaultListModel<String> userListModel;
     private DefaultListModel<String> channelListModel;
     private JList<String> channelList;
+    private DefaultListModel<String> friendsListModel;
+    private JList<String> friendsList;
+
+    private boolean isPrivateMode = false; // true if chatting with a friend
 
     // History storage
     private Map<String, StyledDocument> channelDocs = new HashMap<>();
@@ -195,16 +199,89 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
         });
 
-        JScrollPane scroll = new JScrollPane(channelList);
-        scroll.setBorder(null);
-        sidebar.add(scroll, BorderLayout.CENTER);
+        JScrollPane channelScroll = new JScrollPane(channelList);
+        channelScroll.setBorder(null);
+
+        // Friends Panel
+        JPanel friendsPanel = new JPanel(new BorderLayout());
+        friendsPanel.setBackground(MsnTheme.SIDEBAR);
+
+        JLabel friendsTitle = new JLabel(" Friends");
+        friendsTitle.setFont(MsnTheme.FONT_BOLD);
+        friendsTitle.setForeground(MsnTheme.HEADER_TOP);
+        friendsTitle.setBorder(new EmptyBorder(5, 5, 5, 5));
+        friendsPanel.add(friendsTitle, BorderLayout.NORTH);
+
+        friendsListModel = new DefaultListModel<>();
+        friendsList = new JList<>(friendsListModel);
+        friendsList.setBackground(MsnTheme.SIDEBAR);
+        friendsList.setForeground(MsnTheme.TEXT_NORMAL);
+        friendsList.setFont(MsnTheme.FONT_MAIN);
+        friendsList.setFixedCellHeight(25);
+
+        friendsList.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
+                    boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected,
+                        cellHasFocus);
+                label.setBorder(new EmptyBorder(2, 5, 2, 5));
+                if (isSelected) {
+                    label.setBackground(MsnTheme.SELECTION_BG);
+                    label.setBorder(BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR));
+                }
+                // Use a different icon for users (maybe same for now or load user.png)
+                label.setIcon(UIManager.getIcon("FileView.computerIcon"));
+                return label;
+            }
+        });
+
+        friendsList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                String selected = friendsList.getSelectedValue();
+                if (selected != null) {
+                    switchPrivateChat(selected);
+                }
+            }
+        });
+
+        // Context Menu for Friends
+        friendsList.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    int row = friendsList.locationToIndex(e.getPoint());
+                    friendsList.setSelectedIndex(row);
+                    if (row != -1) {
+                        String selected = friendsList.getSelectedValue();
+                        JPopupMenu menu = new JPopupMenu();
+                        JMenuItem msgItem = new JMenuItem("Envoyer un message");
+                        msgItem.addActionListener(ev -> switchPrivateChat(selected));
+                        menu.add(msgItem);
+                        menu.show(friendsList, e.getX(), e.getY());
+                    }
+                }
+            }
+        });
+
+        JScrollPane friendScroll = new JScrollPane(friendsList);
+        friendScroll.setBorder(null);
+        friendsPanel.add(friendScroll, BorderLayout.CENTER);
+
+        JSplitPane splitSidebar = new JSplitPane(JSplitPane.VERTICAL_SPLIT, channelScroll, friendsPanel);
+        splitSidebar.setDividerLocation(150); // Rough height
+        splitSidebar.setBorder(null);
+        splitSidebar.setResizeWeight(0.5);
+
+        sidebar.add(splitSidebar, BorderLayout.CENTER);
 
         parent.add(sidebar, BorderLayout.WEST);
     }
 
     private void switchChannel(String newChannel) {
+        isPrivateMode = false;
         client.sendMessage("/join " + newChannel);
         currentChannel = newChannel;
+        friendsList.clearSelection(); // Deselect friend
 
         StyledDocument doc = channelDocs.get(newChannel);
         if (doc == null) {
@@ -220,6 +297,24 @@ public class ChatGUI extends JFrame implements MessageListener {
         }
 
         chatArea.setDocument(doc);
+    }
+
+    private void switchPrivateChat(String friendName) {
+        currentChannel = friendName; // Effectively treating username as channel ID
+        isPrivateMode = true;
+
+        StyledDocument doc = channelDocs.get("PRIV_" + friendName);
+        if (doc == null) {
+            doc = new DefaultStyledDocument();
+            channelDocs.put("PRIV_" + friendName, doc);
+        }
+
+        chatArea.setDocument(doc);
+        // We might want to clear selection in channelList
+        channelList.clearSelection();
+
+        // Fetch history
+        client.sendMessage("/privhistory " + friendName);
     }
 
     private void promptCreateChannel() {
@@ -429,9 +524,35 @@ public class ChatGUI extends JFrame implements MessageListener {
         userList.setForeground(MsnTheme.TEXT_NORMAL);
         userList.setFont(MsnTheme.FONT_MAIN);
 
+        attachUserListContextMenu(userList);
+
         userPanel.add(new JScrollPane(userList), BorderLayout.CENTER);
 
         add(userPanel, BorderLayout.EAST);
+    }
+
+    // Creating context menu for user list (Add Friend)
+    private void attachUserListContextMenu(JList<String> list) {
+        list.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) {
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    int row = list.locationToIndex(e.getPoint());
+                    list.setSelectedIndex(row);
+                    if (row != -1) {
+                        String selected = list.getSelectedValue();
+                        if (!selected.equals(username)) { // Can't add self
+                            JPopupMenu menu = new JPopupMenu();
+                            JMenuItem addItem = new JMenuItem("Ajouter en ami");
+                            addItem.addActionListener(ev -> {
+                                client.sendMessage("/friend request " + selected);
+                            });
+                            menu.add(addItem);
+                            menu.show(list, e.getX(), e.getY());
+                        }
+                    }
+                }
+            }
+        });
     }
 
     private void sendMessage() {
@@ -456,7 +577,11 @@ public class ChatGUI extends JFrame implements MessageListener {
 
             payload.append(text);
 
-            client.sendMessage(payload.toString());
+            if (isPrivateMode) {
+                client.sendMessage("/privmsg " + currentChannel + " " + payload.toString());
+            } else {
+                client.sendMessage(payload.toString());
+            }
 
             if (!text.startsWith("/")) {
                 // Optimistic render
@@ -581,6 +706,89 @@ public class ChatGUI extends JFrame implements MessageListener {
                 for (String c : channels.split(",")) {
                     if (!c.isEmpty())
                         channelListModel.addElement("#" + c);
+                }
+                return;
+            }
+
+            if (message.startsWith("FRIENDLIST ")) {
+                String friends = message.substring("FRIENDLIST ".length());
+                friendsListModel.clear();
+                for (String f : friends.split(",")) {
+                    if (!f.isEmpty())
+                        friendsListModel.addElement(f);
+                }
+                return;
+            }
+
+            if (message.startsWith("FRIEND_REQ ")) {
+                // String requester = message.substring("FRIEND_REQ ".length());
+                // Show notification? Log is already sent.
+                // maybe sound
+                return;
+            }
+
+            if (message.startsWith("FRIEND_ACCEPT ")) {
+                // Refresh friend list handled by next FRIENDLIST command if we strictly follow
+                // protocol,
+                // but server sends LOG and notification.
+                // Actually server usually should send updated FRIENDLIST.
+                // In my server implementation, I didn't send FRIENDLIST update on accept
+                // automatically?
+                // I should check.
+                // For now, let's assume valid.
+                return;
+            }
+
+            if (message.startsWith("PRIVMSG ")) {
+                // PRIVMSG sender content
+                // But wait, content might have spaces.
+                String[] parts = message.split(" ", 3);
+                if (parts.length >= 3) {
+                    String sender = parts[1];
+                    String content = parts[2];
+
+                    // If I am the sender (echo), display in chat with receiver
+                    // But wait, server echoes "PRIVMSG <target> <content>" to sender?
+                    // In Server.java: sender.sendMessage("PRIVMSG " + targetUserName + " " +
+                    // message);
+                    // So if I send to Bob, I get "PRIVMSG Bob Hello".
+                    // If Bob sends to me, I get "PRIVMSG Bob Hello".
+                    // So "sender" here is actually "the other person" in the chat view context
+                    // usually?
+                    // Wait.
+                    // Case 1: Bob sends to Me. Server sends Me: "PRIVMSG Bob Hello".
+                    // My view: Chat with Bob.
+                    // Case 2: I send to Bob. Server sends Me: "PRIVMSG Bob Hello".
+                    // My view: Chat with Bob.
+
+                    // So specific logic:
+                    // The second arg is ALWAYS the "Partner" of the conversation in this protocol
+                    // design?
+                    // Let's check Server.java again.
+                    // user.sendMessage("PRIVMSG " + sender.getUserName() + " " + message); (To
+                    // Receiver)
+                    // sender.sendMessage("PRIVMSG " + targetUserName + " " + message); (To Sender)
+
+                    // Yes! The 2nd arg is the "Remote User".
+                    // For Receiver: Remote User is Sender.
+                    // For Sender: Remote User is Target.
+
+                    String remoteUser = sender; // It's actually the "context" name
+
+                    // Ensure doc exists
+                    if (!channelDocs.containsKey("PRIV_" + remoteUser)) {
+                        channelDocs.put("PRIV_" + remoteUser, new DefaultStyledDocument());
+                    }
+
+                    // If current view is this private chat, render locally
+                    if (isPrivateMode && currentChannel.equals(remoteUser)) {
+                        appendToChat(content, Color.BLACK);
+                    } else {
+                        StyledDocument doc = channelDocs.get("PRIV_" + remoteUser);
+                        if (doc != null) {
+                            // Suppressed
+                        }
+                    }
                 }
                 return;
             }

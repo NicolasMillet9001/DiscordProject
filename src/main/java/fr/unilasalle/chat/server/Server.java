@@ -100,14 +100,46 @@ public class Server {
     }
 
     void sendPrivateMessage(String targetUserName, String message, ClientHandler sender) {
+        // Save to DB first
+        dbService.savePrivateMessage(sender.getUserName(), targetUserName, message);
+
         for (ClientHandler user : userThreads) {
             if (user.getUserName().equalsIgnoreCase(targetUserName)) {
-                user.sendMessage("[Private from " + sender.getUserName() + "]: " + message);
-                sender.sendMessage("[Private to " + targetUserName + "]: " + message);
+                // Determine format. If we want it to look like a private chat in UI, we might
+                // use a specific protocol tag
+                // But for now, let's keep it compatible or use PRIVMSG tag
+                user.sendMessage("PRIVMSG " + sender.getUserName() + " " + message);
+                sender.sendMessage("PRIVMSG " + targetUserName + " " + message); // Echo back to sender for their UI
                 return;
             }
         }
-        sender.sendMessage("User " + targetUserName + " not found.");
+        // If user not found (offline), we still saved it.
+        sender.sendMessage("User " + targetUserName + " is offline. Message saved.");
+        // We should probably echo it back to sender anyway so it shows in their chat
+        // window?
+        // Yes, otherwise they don't see what they sent.
+        sender.sendMessage("PRIVMSG " + targetUserName + " " + message);
+    }
+
+    void sendFriendRequestNotification(String target, String requester) {
+        for (ClientHandler user : userThreads) {
+            if (user.getUserName().equalsIgnoreCase(target)) {
+                user.sendMessage("LOG: You have received a friend request from " + requester + ". Type '/friend accept "
+                        + requester + "' to accept.");
+                user.sendMessage("FRIEND_REQ " + requester);
+                return;
+            }
+        }
+    }
+
+    void sendFriendAcceptNotification(String target, String accepter) {
+        for (ClientHandler user : userThreads) {
+            if (user.getUserName().equalsIgnoreCase(target)) {
+                user.sendMessage("LOG: " + accepter + " has accepted your friend request!");
+                user.sendMessage("FRIEND_ACCEPT " + accepter);
+                return;
+            }
+        }
     }
 
     String getUsersInChannel(String channel) {

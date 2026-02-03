@@ -17,6 +17,7 @@ public class DatabaseService {
             Class.forName("org.sqlite.JDBC");
             createTable();
             createMessageTable();
+            initFriendTables();
         } catch (ClassNotFoundException | SQLException e) {
             e.printStackTrace();
         }
@@ -149,6 +150,186 @@ public class DatabaseService {
         }
 
         // Reverse back to chronological
+        java.util.Collections.reverse(history);
+        return history;
+    }
+    // --- Friends System ---
+
+    private void createFriendsTable() throws SQLException {
+        String sql = "CREATE TABLE IF NOT EXISTS friends (" +
+                "user1 TEXT, " +
+                "user2 TEXT, " +
+                "status TEXT, " + // PENDING, ACCEPTED
+                "PRIMARY KEY (user1, user2)" +
+                ");";
+        try (Connection conn = connect();
+                Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
+    }
+
+    private void createPrivateMessageTable() throws SQLException {
+        String sql = "CREATE TABLE IF NOT EXISTS private_messages (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "sender TEXT, " +
+                "receiver TEXT, " +
+                "content TEXT, " +
+                "timestamp DATETIME DEFAULT CURRENT_TIMESTAMP" +
+                ");";
+        try (Connection conn = connect();
+                Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
+    }
+
+    public void initFriendTables() {
+        try {
+            createFriendsTable();
+            createPrivateMessageTable();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Returns true if request sent, false if already exists
+    public boolean requestFriend(String requester, String target) {
+        // Check if exists in either direction
+        if (areFriendsOrPending(requester, target))
+            return false;
+
+        String sql = "INSERT INTO friends(user1, user2, status) VALUES(?, ?, 'PENDING')";
+        try (Connection conn = connect();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, requester);
+            pstmt.setString(2, target);
+            pstmt.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            System.out.println("Error requesting friend: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean acceptFriend(String requester, String target) {
+        // The requester here is the one ACCEPTING the request (so they are user2 in DB
+        // usually, or just update)
+        // Check if there is a pending request from target to requester
+        String sql = "UPDATE friends SET status = 'ACCEPTED' WHERE user1 = ? AND user2 = ? AND status = 'PENDING'";
+        try (Connection conn = connect();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, target); // The original requester
+            pstmt.setString(2, requester); // The one accepting
+            int rows = pstmt.executeUpdate();
+            return rows > 0;
+        } catch (SQLException e) {
+            System.out.println("Error accepting friend: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean areFriendsOrPending(String u1, String u2) {
+        String sql = "SELECT 1 FROM friends WHERE (user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)";
+        try (Connection conn = connect();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, u1);
+            pstmt.setString(2, u2);
+            pstmt.setString(3, u2);
+            pstmt.setString(4, u1);
+            return pstmt.executeQuery().next();
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    public java.util.List<String> getFriends(String user) {
+        java.util.List<String> friends = new java.util.ArrayList<>();
+        String sql = "SELECT user1, user2 FROM friends WHERE (user1 = ? OR user2 = ?) AND status = 'ACCEPTED'";
+        try (Connection conn = connect();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, user);
+            pstmt.setString(2, user);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                String u1 = rs.getString("user1");
+                String u2 = rs.getString("user2");
+                if (u1.equals(user))
+                    friends.add(u2);
+                else
+                    friends.add(u1);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error getting friends: " + e.getMessage());
+        }
+        return friends;
+    }
+
+    public java.util.List<String> getPendingRequests(String user) {
+        java.util.List<String> requests = new java.util.ArrayList<>();
+        String sql = "SELECT user1 FROM friends WHERE user2 = ? AND status = 'PENDING'";
+        try (Connection conn = connect();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, user);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                requests.add(rs.getString("user1"));
+            }
+        } catch (SQLException e) {
+            System.out.println("Error getting requests: " + e.getMessage());
+        }
+        return requests;
+    }
+
+    // --- Private Messaging ---
+
+    public void savePrivateMessage(String sender, String receiver, String content) {
+        String sql = "INSERT INTO private_messages(sender, receiver, content) VALUES(?, ?, ?)";
+        try (Connection conn = connect();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, sender);
+            pstmt.setString(2, receiver);
+            pstmt.setString(3, content);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Error saving private message: " + e.getMessage());
+        }
+    }
+
+    public java.util.List<String> getPrivateHistory(String user1, String user2, int limit) {
+        java.util.List<String> history = new java.util.ArrayList<>();
+        // Select messages between u1 and u2 (either direction)
+        String sql = "SELECT sender, content, datetime(timestamp, 'localtime') as timestamp FROM private_messages " +
+                "WHERE (sender = ? AND receiver = ?) OR (sender = ? AND receiver = ?) " +
+                "ORDER BY id DESC LIMIT ?";
+
+        try (Connection conn = connect();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, user1);
+            pstmt.setString(2, user2);
+            pstmt.setString(3, user2);
+            pstmt.setString(4, user1);
+            pstmt.setInt(5, limit);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                String sender = rs.getString("sender");
+                String msg = rs.getString("content");
+                String ts = rs.getString("timestamp");
+
+                String timePart = ts;
+                try {
+                    if (ts.contains(" ")) {
+                        timePart = ts.split(" ")[1];
+                        if (timePart.contains("."))
+                            timePart = timePart.split("\\.")[0];
+                    }
+                } catch (Exception e) {
+                }
+
+                history.add("HISTORY:[" + timePart + "] [" + sender + "]: " + msg);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error loading pm history: " + e.getMessage());
+        }
         java.util.Collections.reverse(history);
         return history;
     }

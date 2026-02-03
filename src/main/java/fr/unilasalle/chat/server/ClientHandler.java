@@ -70,6 +70,10 @@ public class ClientHandler extends Thread {
 
                             server.broadcastUserList(channel);
                             writer.println("CHANNELLIST " + server.getChannelList()); // Send initial channel list
+
+                            // Send Friend List
+                            java.util.List<String> friends = server.getDbService().getFriends(this.userName);
+                            writer.println("FRIENDLIST " + String.join(",", friends));
                             break;
                         } else {
                             writer.println("LOGIN_FAIL_ALREADY_CONNECTED");
@@ -180,6 +184,72 @@ public class ClientHandler extends Thread {
                     sendMessage("Syntax: /rename <oldName> <newName>");
                 } else {
                     server.renameChannel(parts[1], parts[2]);
+                }
+                break;
+            case "/friend":
+                if (parts.length < 2) {
+                    sendMessage("Syntax: /friend <request|accept|list> [user]");
+                } else {
+                    String subCmd = parts[1].toLowerCase();
+                    if (subCmd.startsWith("request")) {
+                        // /friend request <user>
+                        // parts[1] might be "request user" or split further?
+                        // command split logic in handleCommand is split(" ", 3).
+                        // So parts[1] is the first arg, parts[2] is the rest.
+                        // Wait, logic is: cmd = parts[0] ("/friend"),
+                        // If I typed "/friend request Bob", parts[1] is "request Bob" ?? No.
+                        // split(" ", 3) on "/friend request Bob" gives: ["/friend", "request", "Bob"]
+
+                        // BUT if I typed "/friend list", parts is ["/friend", "list"] length 2.
+
+                        if (parts.length < 3) { // Need target
+                            sendMessage("Syntax: /friend request <username>");
+                        } else {
+                            String target = parts[2];
+                            if (server.getDbService().requestFriend(this.userName, target)) {
+                                sendMessage("Friend request sent to " + target);
+                                server.sendFriendRequestNotification(target, this.userName);
+                            } else {
+                                sendMessage("Could not send request (already friends or pending, or error).");
+                            }
+                        }
+                    } else if (subCmd.startsWith("accept")) {
+                        if (parts.length < 3) {
+                            sendMessage("Syntax: /friend accept <username>");
+                        } else {
+                            String target = parts[2];
+                            if (server.getDbService().acceptFriend(this.userName, target)) {
+                                sendMessage("You are now friends with " + target);
+                                server.sendFriendAcceptNotification(target, this.userName);
+                                // Refresh lists for both? The client needs to know.
+                                // We can send FRIENDLIST update command to both
+                                // Ideally we should have a method to resync friend list
+                            } else {
+                                sendMessage("Could not accept request (no pending request found).");
+                            }
+                        }
+                    } else if (subCmd.startsWith("list")) {
+                        java.util.List<String> friends = server.getDbService().getFriends(this.userName);
+                        sendMessage("FRIENDLIST " + String.join(",", friends));
+                    }
+                }
+                break;
+            case "/privmsg":
+                if (parts.length < 3) {
+                    sendMessage("Syntax: /privmsg <user> <message>");
+                } else {
+                    server.sendPrivateMessage(parts[1], parts[2], this);
+                }
+                break;
+            case "/privhistory":
+                if (parts.length < 2) {
+                    sendMessage("Syntax: /privhistory <user>");
+                } else {
+                    String target = parts[1];
+                    java.util.List<String> history = server.getDbService().getPrivateHistory(this.userName, target, 50);
+                    for (String msg : history) {
+                        sendMessage("PRIVMSG " + target + " " + msg);
+                    }
                 }
                 break;
             default:

@@ -1,0 +1,211 @@
+// Source code is decompiled from a .class file using FernFlower decompiler (from Intellij IDEA).
+package fr.unilasalle.chat.server;
+
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+public class Server {
+   private int port;
+   private Set<ClientHandler> userThreads = ConcurrentHashMap.newKeySet();
+   private DatabaseService dbService;
+   private Set<String> knownChannels = ConcurrentHashMap.newKeySet();
+
+   public Server(int var1) {
+      this.port = var1;
+      this.dbService = new DatabaseService();
+      this.knownChannels.add("general");
+   }
+
+   public DatabaseService getDbService() {
+      return this.dbService;
+   }
+
+   public void execute() {
+      try {
+         ServerSocket var1 = new ServerSocket(this.port);
+
+         try {
+            System.out.println("Chat Server is listening on port " + this.port);
+
+            while(true) {
+               Socket var2 = var1.accept();
+               System.out.println("New user connected");
+               ClientHandler var3 = new ClientHandler(var2, this);
+               this.userThreads.add(var3);
+               var3.start();
+            }
+         } catch (Throwable var5) {
+            try {
+               var1.close();
+            } catch (Throwable var4) {
+               var5.addSuppressed(var4);
+            }
+
+            throw var5;
+         }
+      } catch (IOException var6) {
+         System.out.println("Error in the server: " + var6.getMessage());
+         var6.printStackTrace();
+      }
+   }
+
+   public static void main(String[] var0) {
+      if (var0.length < 1) {
+         System.out.println("Syntax: java Server <port-number>");
+         System.exit(0);
+      }
+
+      int var1 = Integer.parseInt(var0[0]);
+      Server var2 = new Server(var1);
+      var2.execute();
+   }
+
+   void broadcast(String var1, ClientHandler var2) {
+      Logger.log(var1);
+      Iterator var3 = this.userThreads.iterator();
+
+      while(var3.hasNext()) {
+         ClientHandler var4 = (ClientHandler)var3.next();
+         if (var4 != var2) {
+            var4.sendMessage(var1);
+         }
+      }
+
+   }
+
+   void broadcastToChannel(String var1, String var2, ClientHandler var3) {
+      Logger.log("[" + var1 + "] " + var2);
+      String var4;
+      if (var3 != null) {
+         var4 = var2;
+         if (var2.startsWith("[" + var3.getUserName() + "]: ")) {
+            var4 = var2.substring(var3.getUserName().length() + 4);
+         }
+
+         this.dbService.saveMessage(var1, var3.getUserName(), var4);
+      }
+
+      var4 = "CHANMSG " + var1 + " " + var2;
+      Iterator var5 = this.userThreads.iterator();
+
+      while(var5.hasNext()) {
+         ClientHandler var6 = (ClientHandler)var5.next();
+         if (var6 != var3) {
+            var6.sendMessage(var4);
+         }
+      }
+
+   }
+
+   void sendPrivateMessage(String var1, String var2, ClientHandler var3) {
+      Iterator var4 = this.userThreads.iterator();
+
+      ClientHandler var5;
+      do {
+         if (!var4.hasNext()) {
+            var3.sendMessage("User " + var1 + " not found.");
+            return;
+         }
+
+         var5 = (ClientHandler)var4.next();
+      } while(!var5.getUserName().equalsIgnoreCase(var1));
+
+      String var10001 = var3.getUserName();
+      var5.sendMessage("[Private from " + var10001 + "]: " + var2);
+      var3.sendMessage("[Private to " + var1 + "]: " + var2);
+   }
+
+   String getUsersInChannel(String var1) {
+      StringBuilder var2 = new StringBuilder();
+      Iterator var3 = this.userThreads.iterator();
+
+      while(var3.hasNext()) {
+         ClientHandler var4 = (ClientHandler)var3.next();
+         if (var4.getChannel().equalsIgnoreCase(var1)) {
+            var2.append(var4.getUserName()).append(",");
+         }
+      }
+
+      if (var2.length() > 0) {
+         var2.setLength(var2.length() - 1);
+      }
+
+      return var2.toString();
+   }
+
+   void broadcastUserList(String var1) {
+      String var2 = this.getUsersInChannel(var1);
+      String var3 = "USERLIST " + var1 + " " + var2;
+      this.broadcastToChannel(var1, var3, (ClientHandler)null);
+   }
+
+   void broadcastChannelList() {
+      String var1 = String.join(",", this.knownChannels);
+      String var2 = "CHANNELLIST " + var1;
+      this.broadcast(var2, (ClientHandler)null);
+   }
+
+   public void checkAndAddChannel(String var1) {
+      if (!this.knownChannels.contains(var1)) {
+         this.knownChannels.add(var1);
+         this.broadcastChannelList();
+      }
+
+   }
+
+   public String getChannelList() {
+      return String.join(",", this.knownChannels);
+   }
+
+   synchronized boolean addUserName(String var1) {
+      if (var1 != null && !var1.trim().isEmpty()) {
+         Iterator var2 = this.userThreads.iterator();
+
+         String var4;
+         do {
+            if (!var2.hasNext()) {
+               System.out.println(var1 + " has connected");
+               return true;
+            }
+
+            ClientHandler var3 = (ClientHandler)var2.next();
+            var4 = var3.getUserName();
+         } while(var4 == null || !var4.equalsIgnoreCase(var1));
+
+         return false;
+      } else {
+         return false;
+      }
+   }
+
+   void removeUser(ClientHandler var1, String var2) {
+      boolean var3 = this.userThreads.remove(var1);
+      if (var3) {
+         System.out.println("The user " + var2 + " quitted");
+      }
+
+   }
+
+   Set<String> getUserNames() {
+      HashSet var1 = new HashSet();
+      Iterator var2 = this.userThreads.iterator();
+
+      while(var2.hasNext()) {
+         ClientHandler var3 = (ClientHandler)var2.next();
+         if (var3.getUserName() != null) {
+            var1.add(var3.getUserName());
+         }
+      }
+
+      return var1;
+   }
+
+   boolean hasUsers() {
+      return !this.userThreads.isEmpty();
+   }
+}
