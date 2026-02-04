@@ -330,26 +330,45 @@ public class ChatGUI extends JFrame implements MessageListener {
         isPrivateMode = false;
         client.sendMessage("/join " + newChannel);
         currentChannel = newChannel;
+        client.sendMessage("/join " + newChannel);
+        currentChannel = newChannel;
         friendsList.clearSelection(); // Deselect friend
+
+        // Clear channel users locally while waiting for server update
+        channelUsers.clear();
+        if (userList != null)
+            userList.repaint();
 
         StyledDocument doc = channelDocs.get(newChannel);
         if (doc == null) {
             doc = (StyledDocument) kit.createDefaultDocument();
             channelDocs.put(newChannel, doc);
-        } else {
-            try {
-                doc.remove(0, doc.getLength());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
         chatArea.setDocument(doc);
         scrollToBottom();
     }
 
+    private String getPrivateRoomName(String u1, String u2) {
+        if (u1.compareTo(u2) < 0) {
+            return "!PRIVATE_" + u1 + "_" + u2;
+        } else {
+            return "!PRIVATE_" + u2 + "_" + u1;
+        }
+    }
+
     private void switchPrivateChat(String friendName) {
         currentChannel = friendName; // Effectively treating username as channel ID
         isPrivateMode = true;
+
+        // Join the hidden presence room
+        String roomName = getPrivateRoomName(username, friendName);
+        client.sendMessage("/join " + roomName);
+
+        // Highlight only this friend
+        channelUsers.clear();
+        // channelUsers.add(friendName); // Waiting for server update instead
+        if (userList != null)
+            userList.repaint();
 
         StyledDocument doc = channelDocs.get("PRIV_" + friendName);
         if (doc == null) {
@@ -501,13 +520,13 @@ public class ChatGUI extends JFrame implements MessageListener {
             public void keyPressed(java.awt.event.KeyEvent e) {
                 int code = e.getKeyCode();
                 // Ignore modifiers (Shift, Ctrl, Alt) and Function/Action keys (F1-F12, Arrows)
-                if (code == java.awt.event.KeyEvent.VK_SHIFT || 
-                    code == java.awt.event.KeyEvent.VK_CONTROL ||
-                    code == java.awt.event.KeyEvent.VK_ALT || 
-                    code == java.awt.event.KeyEvent.VK_ALT_GRAPH ||
-                    code == java.awt.event.KeyEvent.VK_META || 
-                    code == java.awt.event.KeyEvent.VK_CAPS_LOCK ||
-                    e.isActionKey()) {
+                if (code == java.awt.event.KeyEvent.VK_SHIFT ||
+                        code == java.awt.event.KeyEvent.VK_CONTROL ||
+                        code == java.awt.event.KeyEvent.VK_ALT ||
+                        code == java.awt.event.KeyEvent.VK_ALT_GRAPH ||
+                        code == java.awt.event.KeyEvent.VK_META ||
+                        code == java.awt.event.KeyEvent.VK_CAPS_LOCK ||
+                        e.isActionKey()) {
                     return;
                 }
                 soundManager.playKey(code == java.awt.event.KeyEvent.VK_SPACE);
@@ -1232,14 +1251,34 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
 
             if (message.startsWith("USERLIST " + currentChannel + " ")) {
+                // Standard Channel List
                 String users = message.substring(("USERLIST " + currentChannel + " ").length());
-                // Update specific channel user set for highlighting
                 channelUsers.clear();
                 for (String u : users.split(",")) {
                     if (!u.isEmpty())
                         channelUsers.add(u);
                 }
                 userList.repaint();
+                return;
+            }
+
+            // Handle Private Room User List
+            if (message.startsWith("USERLIST !PRIVATE_")) {
+                String[] parts = message.split(" ", 3);
+                if (parts.length >= 3) {
+                    String roomName = parts[1];
+                    String users = parts[2];
+
+                    // Check if this room corresponds to our current private chat
+                    if (isPrivateMode && roomName.equals(getPrivateRoomName(username, currentChannel))) {
+                        channelUsers.clear();
+                        for (String u : users.split(",")) {
+                            if (!u.isEmpty())
+                                channelUsers.add(u);
+                        }
+                        userList.repaint();
+                    }
+                }
                 return;
             }
 
@@ -1265,7 +1304,15 @@ public class ChatGUI extends JFrame implements MessageListener {
                         if (content.startsWith(prefix)) {
                             String users = content.substring(prefix.length());
                             // Only update if it matches current view
+                            boolean match = false;
                             if (targetChannel.equals(currentChannel)) {
+                                match = true;
+                            } else if (isPrivateMode
+                                    && targetChannel.equals(getPrivateRoomName(username, currentChannel))) {
+                                match = true;
+                            }
+
+                            if (match) {
                                 channelUsers.clear();
                                 for (String u : users.split(",")) {
                                     if (!u.isEmpty())

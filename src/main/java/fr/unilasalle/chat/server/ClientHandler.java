@@ -57,6 +57,7 @@ public class ClientHandler extends Thread {
                         // Check if already online
                         if (server.addUserName(parts[1])) {
                             this.userName = parts[1];
+                            server.broadcastAllUsers(); // Update global list now that name is set
                             writer.println("LOGIN_SUCCESS " + this.userName);
                             writer.println("Welcome " + this.userName);
                             writer.println("You are in channel: " + channel);

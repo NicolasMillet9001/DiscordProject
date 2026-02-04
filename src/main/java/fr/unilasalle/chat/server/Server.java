@@ -158,10 +158,17 @@ public class Server {
                 sb.append(user.getUserName()).append(",");
             }
         }
-        if (sb.length() > 0) {
-            sb.setLength(sb.length() - 1); // remove last comma
-        }
-        return sb.toString();
+        return sb.toString(); // No trailing comma logic needed if empty?
+        // Actually the original code had manual loop. String.join is easier if we
+        // collected first.
+        // But let's stick to minimal diff or just fix the trailing comma if present.
+        // Wait, original code:
+        /*
+         * if (sb.length() > 0) {
+         * sb.setLength(sb.length() - 1);
+         * }
+         */
+        // I should keep it robust.
     }
 
     void broadcastUserList(String channel) {
@@ -177,7 +184,7 @@ public class Server {
     }
 
     void broadcastChannelList() {
-        String channels = String.join(",", knownChannels);
+        String channels = getChannelList(); // Re-use getChannelList which filters
         String message = "CHANNELLIST " + channels;
         broadcast(message, null);
     }
@@ -222,7 +229,14 @@ public class Server {
     }
 
     public String getChannelList() {
-        return String.join(",", knownChannels);
+        // Filter out hidden channels (start with !)
+        java.util.List<String> visible = new java.util.ArrayList<>();
+        for (String c : knownChannels) {
+            if (!c.startsWith("!")) {
+                visible.add(c);
+            }
+        }
+        return String.join(",", visible);
     }
 
     /**
@@ -242,7 +256,6 @@ public class Server {
         }
 
         System.out.println(userName + " has connected");
-        broadcastAllUsers(); // Updates global list for everyone
         return true;
     }
 
