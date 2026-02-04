@@ -41,6 +41,7 @@ public class ChatGUI extends JFrame implements MessageListener {
     private String password;
     private boolean registerMode;
     private HTMLEditorKit kit; // Helper for inserting HTML
+    private SoundManager soundManager;
 
     public ChatGUI(String hostname, int port, String username, String password, boolean registerMode) {
         this.username = username;
@@ -57,6 +58,9 @@ public class ChatGUI extends JFrame implements MessageListener {
         mainContent.setBackground(MsnTheme.BACKGROUND);
         mainContent.setBorder(BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR, 2));
         setContentPane(mainContent);
+
+        // Initialize Sound Manager
+        soundManager = new SoundManager();
 
         // Initialize Kit
         kit = new HTMLEditorKit();
@@ -89,23 +93,12 @@ public class ChatGUI extends JFrame implements MessageListener {
         client = new Client(hostname, port, this);
         client.execute();
 
-        // Initialize Sound Manager
-        SoundManager soundManager = new SoundManager();
-
         // Global Mouse Listener for Click Sounds
         Toolkit.getDefaultToolkit().addAWTEventListener(event -> {
             if (event.getID() == MouseEvent.MOUSE_PRESSED) {
                 soundManager.playClick();
             }
         }, AWTEvent.MOUSE_EVENT_MASK);
-
-        // Global Key Listener for Typing Sounds
-        KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(e -> {
-            if (e.getID() == KeyEvent.KEY_PRESSED) {
-                soundManager.playKey(e.getKeyCode() == KeyEvent.VK_SPACE);
-            }
-            return false;
-        });
 
         System.out.println("Window set to visible.");
         setVisible(true);
@@ -499,6 +492,23 @@ public class ChatGUI extends JFrame implements MessageListener {
                 BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR),
                 new EmptyBorder(5, 5, 5, 5)));
         inputField.addActionListener(e -> sendMessage());
+        inputField.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent e) {
+                int code = e.getKeyCode();
+                // Ignore modifiers (Shift, Ctrl, Alt) and Function/Action keys (F1-F12, Arrows)
+                if (code == java.awt.event.KeyEvent.VK_SHIFT || 
+                    code == java.awt.event.KeyEvent.VK_CONTROL ||
+                    code == java.awt.event.KeyEvent.VK_ALT || 
+                    code == java.awt.event.KeyEvent.VK_ALT_GRAPH ||
+                    code == java.awt.event.KeyEvent.VK_META || 
+                    code == java.awt.event.KeyEvent.VK_CAPS_LOCK ||
+                    e.isActionKey()) {
+                    return;
+                }
+                soundManager.playKey(code == java.awt.event.KeyEvent.VK_SPACE);
+            }
+        });
 
         inputPanel.add(inputField, BorderLayout.CENTER);
 
