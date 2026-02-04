@@ -84,18 +84,17 @@ public class Server {
             // The message passed here is already formatted "[User]: Content".
             // Extract content:
             String content = message;
-            if (message.startsWith("[" + sender.getUserName() + "]: ")) {
-                content = message.substring(sender.getUserName().length() + 4);
+            int split = message.indexOf("]: ");
+            if (split > 0) {
+                content = message.substring(split + 3);
             }
             dbService.saveMessage(channel, sender.getUserName(), content);
         }
 
         String taggedMessage = "CHANMSG " + channel + " " + message;
         for (ClientHandler user : userThreads) {
-            if (user != sender) {
-                // Send to ALL connected users so they can update their background history
-                user.sendMessage(taggedMessage);
-            }
+            // Send to ALL users including sender (so they see their own message)
+            user.sendMessage(taggedMessage);
         }
     }
 

@@ -151,8 +151,16 @@ public class ChatGUI extends JFrame implements MessageListener {
             appendToChat(formattedContent, Color.BLACK);
             scrollToBottom();
         } else {
-            // In future, could append to background doc here using kit.insertHTML on doc
-            // object
+            // Append to background doc
+            StyledDocument doc = channelDocs.get("PRIV_" + remoteUser);
+            if (doc instanceof HTMLDocument) {
+                HTMLDocument hDoc = (HTMLDocument) doc;
+                try {
+                    kit.insertHTML(hDoc, hDoc.getLength(), formattedContent, 0, 0, null);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
@@ -696,6 +704,8 @@ public class ChatGUI extends JFrame implements MessageListener {
             if (msg.startsWith("[")) {
                 // Check if this is a history message with timestamp: [dd/MM/yy HH:MM:SS]
                 // [user]: message
+
+                // Check if msg is already fully formatted with date (History check 1)
                 if (msg.matches("^\\[\\d{2}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}\\] \\[.+?\\]: .+")) {
                     // Extract timestamp, user, and content
                     int firstClose = msg.indexOf("]");
@@ -745,6 +755,67 @@ public class ChatGUI extends JFrame implements MessageListener {
 
                     html.append("<div ").append(divStyle).append(" style='").append(styleAttr).append("'>");
                     html.append("<div class='header' style='color:#999;'>").append(timestamp).append(" - ").append(user)
+                            .append(":</div>");
+                    html.append("<div class='content'>").append(cleanContent).append("</div>");
+                    html.append("</div>");
+
+                    kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
+                    scrollToBottom();
+                    return;
+                }
+
+                // Check for History format variant: [HH:mm:ss] [User]: ...
+                if (msg.matches("^\\[\\d{2}:\\d{2}:\\d{2}\\] \\[.+?\\]: .+")) {
+                    // Extract timestamp (HH:mm:ss only), user, content
+                    int firstClose = msg.indexOf("]");
+                    String timePart = msg.substring(1, firstClose); // HH:mm:ss
+                    // We might want to prepend today's date or just use it as is?
+                    // Let's use it as the timestamp text.
+
+                    int secondOpen = msg.indexOf("[", firstClose);
+                    int secondClose = msg.indexOf("]:", secondOpen);
+                    String user = msg.substring(secondOpen + 1, secondClose);
+                    String content = msg.substring(secondClose + 3);
+
+                    // Assume same color parsing logic as above?
+                    // Or simplify. Copy-paste logic for styling:
+                    String fgHex = "#000000";
+                    String bgHex = null;
+                    String cleanContent = content;
+
+                    while (cleanContent.startsWith("[c=#") || cleanContent.startsWith("[b=#")) {
+                        if (cleanContent.startsWith("[c=#")) {
+                            int end = cleanContent.indexOf("]");
+                            if (end > 0) {
+                                fgHex = cleanContent.substring(3, end);
+                                cleanContent = cleanContent.substring(end + 1);
+                            } else
+                                break;
+                        } else if (cleanContent.startsWith("[b=#")) {
+                            int end = cleanContent.indexOf("]");
+                            if (end > 0) {
+                                bgHex = cleanContent.substring(3, end);
+                                cleanContent = cleanContent.substring(end + 1);
+                            } else
+                                break;
+                        }
+                    }
+
+                    String divStyle = "class='msg-block'";
+                    String styleAttr = "color:" + fgHex + ";";
+                    if (bgHex != null) {
+                        styleAttr += " background-color:" + bgHex + ";";
+                    }
+
+                    boolean isMe = user.equalsIgnoreCase(username);
+                    if (isMe) {
+                        styleAttr += " text-align: right; margin-left: 50px;";
+                    } else {
+                        styleAttr += " margin-right: 50px;";
+                    }
+
+                    html.append("<div ").append(divStyle).append(" style='").append(styleAttr).append("'>");
+                    html.append("<div class='header' style='color:#999;'>").append(timePart).append(" - ").append(user)
                             .append(":</div>");
                     html.append("<div class='content'>").append(cleanContent).append("</div>");
                     html.append("</div>");
