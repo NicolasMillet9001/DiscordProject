@@ -148,18 +148,13 @@ public class ChatGUI extends JFrame implements MessageListener {
 
         // If current view is this private chat, render locally
         if (isPrivateMode && currentChannel.equals(remoteUser)) {
+            // Calling appendToChat handles scrolling and parsing/rendering
             appendToChat(formattedContent, Color.BLACK);
-            scrollToBottom();
         } else {
             // Append to background doc
             StyledDocument doc = channelDocs.get("PRIV_" + remoteUser);
             if (doc instanceof HTMLDocument) {
-                HTMLDocument hDoc = (HTMLDocument) doc;
-                try {
-                    kit.insertHTML(hDoc, hDoc.getLength(), formattedContent, 0, 0, null);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                appendMessageToDoc((HTMLDocument) doc, formattedContent);
             }
         }
     }
@@ -659,16 +654,267 @@ public class ChatGUI extends JFrame implements MessageListener {
 
     // Helper to append colored text using HTML
     private void appendToChat(String msg, Color c) {
-        HTMLDocument doc = (HTMLDocument) chatArea.getDocument();
-        // Ensure we handle current channel doc correctly if we are in background?
-        // Actually chatArea.getDocument() is current channel.
-        // If msg is for current channel we use chatArea, else we get from map.
-        // But for simplicity in this method provided, we assume it's for current doc or
-        // we fetch from map?
-        // The original logic fetched 'doc = chatArea.getStyledDocument()'.
-        // Logic in onMessageReceived handles 'if target==current append else...'
-        // So we strictly append to 'doc' which is current.
+        StyledDocument doc = chatArea.getStyledDocument();
+        if (doc instanceof HTMLDocument) {
+            appendMessageToDoc((HTMLDocument) doc, msg);
+            scrollToBottom();
+        }
+        return;
+        /*
+         * HTMLDocument doc = (HTMLDocument) chatArea.getDocument();
+         * // Ensure we handle current channel doc correctly if we are in background?
+         * // Actually chatArea.getDocument() is current channel.
+         * // If msg is for current channel we use chatArea, else we get from map.
+         * // But for simplicity in this method provided, we assume it's for current doc
+         * or
+         * // we fetch from map?
+         * // The original logic fetched 'doc = chatArea.getStyledDocument()'.
+         * // Logic in onMessageReceived handles 'if target==current append else...'
+         * // So we strictly append to 'doc' which is current.
+         * 
+         * try {
+         * StringBuilder html = new StringBuilder();
+         * 
+         * // Handle private messages specially
+         * if (msg.startsWith("[Private from ") || msg.startsWith("[Private to ")) {
+         * int split = msg.indexOf("]:");
+         * if (split > 0) {
+         * String header = msg.substring(1, split); // "Private from User" or
+         * "Private to User"
+         * String content = msg.substring(split + 3);
+         * 
+         * String style =
+         * "background-color:#f0e6ff; border-left: 3px solid #800080; padding: 5px;";
+         * // Right alignment for own messages (assuming username variable holds current
+         * // user)
+         * boolean isMe = header.contains(username);
+         * if (isMe) {
+         * style += " margin-left: 50px; text-align: right;";
+         * } else {
+         * style += " margin-right: 50px;";
+         * }
+         * 
+         * html.append("<div class='msg-block' style='" + style + "'>");
+         * html.append("<div class='header' style='color:#800080; font-weight:bold;'>").
+         * append(header)
+         * .append(":</div>");
+         * html.append("<div class='content' style='font-style:italic;'>").append(
+         * content).append("</div>");
+         * html.append("</div>");
+         * 
+         * kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
+         * scrollToBottom();
+         * return;
+         * }
+         * }
+         * 
+         * if (msg.startsWith("[")) {
+         * // Check if this is a history message with timestamp: [dd/MM/yy HH:MM:SS]
+         * // [user]: message
+         * 
+         * // Check if msg is already fully formatted with date (History check 1)
+         * if
+         * (msg.matches("^\\[\\d{2}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}\\] \\[.+?\\]: .+"
+         * )) {
+         * // Extract timestamp, user, and content
+         * int firstClose = msg.indexOf("]");
+         * String timestamp = msg.substring(1, firstClose); // dd/MM/yy HH:MM:SS
+         * 
+         * int secondOpen = msg.indexOf("[", firstClose);
+         * int secondClose = msg.indexOf("]:", secondOpen);
+         * String user = msg.substring(secondOpen + 1, secondClose);
+         * String content = msg.substring(secondClose + 3);
+         * 
+         * // Parser for color codes
+         * String fgHex = "#000000";
+         * String bgHex = null;
+         * String cleanContent = content;
+         * 
+         * while (cleanContent.startsWith("[c=#") || cleanContent.startsWith("[b=#")) {
+         * if (cleanContent.startsWith("[c=#")) {
+         * int end = cleanContent.indexOf("]");
+         * if (end > 0) {
+         * fgHex = cleanContent.substring(3, end);
+         * cleanContent = cleanContent.substring(end + 1);
+         * } else
+         * break;
+         * } else if (cleanContent.startsWith("[b=#")) {
+         * int end = cleanContent.indexOf("]");
+         * if (end > 0) {
+         * bgHex = cleanContent.substring(3, end);
+         * cleanContent = cleanContent.substring(end + 1);
+         * } else
+         * break;
+         * }
+         * }
+         * 
+         * String divStyle = "class='msg-block'";
+         * String styleAttr = "color:" + fgHex + ";";
+         * if (bgHex != null) {
+         * styleAttr += " background-color:" + bgHex + ";";
+         * }
+         * 
+         * // Check for own message
+         * boolean isMe = user.equalsIgnoreCase(username);
+         * if (isMe) {
+         * styleAttr += " text-align: right; margin-left: 50px;";
+         * } else {
+         * styleAttr += " margin-right: 50px;";
+         * }
+         * 
+         * html.append("<div ").append(divStyle).append(" style='").append(styleAttr).
+         * append("'>");
+         * html.append("<div class='header' style='color:#999;'>").append(timestamp).
+         * append(" - ").append(user)
+         * .append(":</div>");
+         * html.append("<div class='content'>").append(cleanContent).append("</div>");
+         * html.append("</div>");
+         * 
+         * kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
+         * scrollToBottom();
+         * return;
+         * }
+         * 
+         * // Check for History format variant: [HH:mm:ss] [User]: ...
+         * if (msg.matches("^\\[\\d{2}:\\d{2}:\\d{2}\\] \\[.+?\\]: .+")) {
+         * // Extract timestamp (HH:mm:ss only), user, content
+         * int firstClose = msg.indexOf("]");
+         * String timePart = msg.substring(1, firstClose); // HH:mm:ss
+         * // We might want to prepend today's date or just use it as is?
+         * // Let's use it as the timestamp text.
+         * 
+         * int secondOpen = msg.indexOf("[", firstClose);
+         * int secondClose = msg.indexOf("]:", secondOpen);
+         * String user = msg.substring(secondOpen + 1, secondClose);
+         * String content = msg.substring(secondClose + 3);
+         * 
+         * // Assume same color parsing logic as above?
+         * // Or simplify. Copy-paste logic for styling:
+         * String fgHex = "#000000";
+         * String bgHex = null;
+         * String cleanContent = content;
+         * 
+         * while (cleanContent.startsWith("[c=#") || cleanContent.startsWith("[b=#")) {
+         * if (cleanContent.startsWith("[c=#")) {
+         * int end = cleanContent.indexOf("]");
+         * if (end > 0) {
+         * fgHex = cleanContent.substring(3, end);
+         * cleanContent = cleanContent.substring(end + 1);
+         * } else
+         * break;
+         * } else if (cleanContent.startsWith("[b=#")) {
+         * int end = cleanContent.indexOf("]");
+         * if (end > 0) {
+         * bgHex = cleanContent.substring(3, end);
+         * cleanContent = cleanContent.substring(end + 1);
+         * } else
+         * break;
+         * }
+         * }
+         * 
+         * String divStyle = "class='msg-block'";
+         * String styleAttr = "color:" + fgHex + ";";
+         * if (bgHex != null) {
+         * styleAttr += " background-color:" + bgHex + ";";
+         * }
+         * 
+         * boolean isMe = user.equalsIgnoreCase(username);
+         * if (isMe) {
+         * styleAttr += " text-align: right; margin-left: 50px;";
+         * } else {
+         * styleAttr += " margin-right: 50px;";
+         * }
+         * 
+         * html.append("<div ").append(divStyle).append(" style='").append(styleAttr).
+         * append("'>");
+         * html.append("<div class='header' style='color:#999;'>").append(timePart).
+         * append(" - ").append(user)
+         * .append(":</div>");
+         * html.append("<div class='content'>").append(cleanContent).append("</div>");
+         * html.append("</div>");
+         * 
+         * kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
+         * scrollToBottom();
+         * return;
+         * }
+         * 
+         * // Regular message format: [user]: message
+         * int split = msg.indexOf("]:");
+         * if (split > 0) {
+         * String user = msg.substring(1, split);
+         * if (user.startsWith("["))
+         * user = user.substring(1);
+         * String content = msg.substring(split + 3);
+         * 
+         * // Generate current timestamp
+         * DateTimeFormatter formatter =
+         * DateTimeFormatter.ofPattern("dd/MM/yy HH:mm:ss");
+         * String timestamp = LocalDateTime.now().format(formatter);
+         * 
+         * // Parser
+         * String fgHex = "#000000";
+         * String bgHex = null;
+         * String cleanContent = content;
+         * 
+         * while (cleanContent.startsWith("[c=#") || cleanContent.startsWith("[b=#")) {
+         * if (cleanContent.startsWith("[c=#")) {
+         * int end = cleanContent.indexOf("]");
+         * if (end > 0) {
+         * fgHex = cleanContent.substring(3, end);
+         * cleanContent = cleanContent.substring(end + 1);
+         * } else
+         * break;
+         * } else if (cleanContent.startsWith("[b=#")) {
+         * int end = cleanContent.indexOf("]");
+         * if (end > 0) {
+         * bgHex = cleanContent.substring(3, end);
+         * cleanContent = cleanContent.substring(end + 1);
+         * } else
+         * break;
+         * }
+         * }
+         * 
+         * String divStyle = "class='msg-block' style='color:" + fgHex + ";";
+         * if (bgHex != null) {
+         * divStyle += " background-color:" + bgHex + ";";
+         * }
+         * divStyle += "'";
+         * 
+         * html.append("<div ").append(divStyle).append(">");
+         * html.append("<div class='header' style='color:#999;'>").append(timestamp).
+         * append(" - ").append(user)
+         * .append(":</div>");
+         * html.append("<div class='content'>").append(cleanContent).append("</div>");
+         * html.append("</div>");
+         * 
+         * kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
+         * scrollToBottom();
+         * return;
+         * }
+         * }
+         * 
+         * // Fallback for simple messages (System logs etc)
+         * String safeMsg = msg.replace("<", "&lt;").replace(">", "&gt;");
+         * kit.insertHTML(doc, doc.getLength(),
+         * "<div style='color:gray; font-style:italic;'>" + safeMsg + "</div>", 0,
+         * 0, null);
+         * 
+         * } catch (Exception e) {
+         * e.printStackTrace();
+         * }
+         * }
+         */
+    }
 
+    private void scrollToBottom() {
+        SwingUtilities.invokeLater(() -> chatArea.setCaretPosition(chatArea.getDocument().getLength()));
+    }
+
+    private Color getUniqueColor(String name) {
+        return MsnTheme.TEXT_NORMAL;
+    }
+
+    private void appendMessageToDoc(HTMLDocument doc, String msg) {
         try {
             StringBuilder html = new StringBuilder();
 
@@ -676,13 +922,11 @@ public class ChatGUI extends JFrame implements MessageListener {
             if (msg.startsWith("[Private from ") || msg.startsWith("[Private to ")) {
                 int split = msg.indexOf("]:");
                 if (split > 0) {
-                    String header = msg.substring(1, split); // "Private from User" or "Private to User"
+                    String header = msg.substring(1, split);
                     String content = msg.substring(split + 3);
 
                     String style = "background-color:#f0e6ff; border-left: 3px solid #800080; padding: 5px;";
-                    // Right alignment for own messages (assuming username variable holds current
-                    // user)
-                    boolean isMe = header.contains(username);
+                    boolean isMe = header.contains(username != null ? username : "");
                     if (isMe) {
                         style += " margin-left: 50px; text-align: right;";
                     } else {
@@ -696,136 +940,54 @@ public class ChatGUI extends JFrame implements MessageListener {
                     html.append("</div>");
 
                     kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
-                    scrollToBottom();
                     return;
                 }
             }
 
             if (msg.startsWith("[")) {
-                // Check if this is a history message with timestamp: [dd/MM/yy HH:MM:SS]
-                // [user]: message
+                // Check for dd/MM/yyyy HH:mm:ss format
+                if (msg.matches("^\\[\\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2}:\\d{2}\\] \\[.+?\\]: .+")) {
+                    int firstClose = msg.indexOf("]");
+                    String timestamp = msg.substring(1, firstClose);
 
-                // Check if msg is already fully formatted with date (History check 1)
+                    int secondOpen = msg.indexOf("[", firstClose);
+                    int secondClose = msg.indexOf("]:", secondOpen);
+                    String user = msg.substring(secondOpen + 1, secondClose);
+                    String content = msg.substring(secondClose + 3);
+
+                    appendFormattedBlock(doc, timestamp, user, content);
+                    return;
+                }
+
+                // Check for dd/MM/yy HH:mm:ss format (2-digit year)
                 if (msg.matches("^\\[\\d{2}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}\\] \\[.+?\\]: .+")) {
-                    // Extract timestamp, user, and content
                     int firstClose = msg.indexOf("]");
-                    String timestamp = msg.substring(1, firstClose); // dd/MM/yy HH:MM:SS
+                    String timestamp = msg.substring(1, firstClose);
 
                     int secondOpen = msg.indexOf("[", firstClose);
                     int secondClose = msg.indexOf("]:", secondOpen);
                     String user = msg.substring(secondOpen + 1, secondClose);
                     String content = msg.substring(secondClose + 3);
 
-                    // Parser for color codes
-                    String fgHex = "#000000";
-                    String bgHex = null;
-                    String cleanContent = content;
-
-                    while (cleanContent.startsWith("[c=#") || cleanContent.startsWith("[b=#")) {
-                        if (cleanContent.startsWith("[c=#")) {
-                            int end = cleanContent.indexOf("]");
-                            if (end > 0) {
-                                fgHex = cleanContent.substring(3, end);
-                                cleanContent = cleanContent.substring(end + 1);
-                            } else
-                                break;
-                        } else if (cleanContent.startsWith("[b=#")) {
-                            int end = cleanContent.indexOf("]");
-                            if (end > 0) {
-                                bgHex = cleanContent.substring(3, end);
-                                cleanContent = cleanContent.substring(end + 1);
-                            } else
-                                break;
-                        }
-                    }
-
-                    String divStyle = "class='msg-block'";
-                    String styleAttr = "color:" + fgHex + ";";
-                    if (bgHex != null) {
-                        styleAttr += " background-color:" + bgHex + ";";
-                    }
-
-                    // Check for own message
-                    boolean isMe = user.equalsIgnoreCase(username);
-                    if (isMe) {
-                        styleAttr += " text-align: right; margin-left: 50px;";
-                    } else {
-                        styleAttr += " margin-right: 50px;";
-                    }
-
-                    html.append("<div ").append(divStyle).append(" style='").append(styleAttr).append("'>");
-                    html.append("<div class='header' style='color:#999;'>").append(timestamp).append(" - ").append(user)
-                            .append(":</div>");
-                    html.append("<div class='content'>").append(cleanContent).append("</div>");
-                    html.append("</div>");
-
-                    kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
-                    scrollToBottom();
+                    appendFormattedBlock(doc, timestamp, user, content);
                     return;
                 }
 
-                // Check for History format variant: [HH:mm:ss] [User]: ...
+                // Check for HH:mm:ss format (History/Legacy)
                 if (msg.matches("^\\[\\d{2}:\\d{2}:\\d{2}\\] \\[.+?\\]: .+")) {
-                    // Extract timestamp (HH:mm:ss only), user, content
                     int firstClose = msg.indexOf("]");
-                    String timePart = msg.substring(1, firstClose); // HH:mm:ss
-                    // We might want to prepend today's date or just use it as is?
-                    // Let's use it as the timestamp text.
+                    String timePart = msg.substring(1, firstClose);
 
                     int secondOpen = msg.indexOf("[", firstClose);
                     int secondClose = msg.indexOf("]:", secondOpen);
                     String user = msg.substring(secondOpen + 1, secondClose);
                     String content = msg.substring(secondClose + 3);
 
-                    // Assume same color parsing logic as above?
-                    // Or simplify. Copy-paste logic for styling:
-                    String fgHex = "#000000";
-                    String bgHex = null;
-                    String cleanContent = content;
-
-                    while (cleanContent.startsWith("[c=#") || cleanContent.startsWith("[b=#")) {
-                        if (cleanContent.startsWith("[c=#")) {
-                            int end = cleanContent.indexOf("]");
-                            if (end > 0) {
-                                fgHex = cleanContent.substring(3, end);
-                                cleanContent = cleanContent.substring(end + 1);
-                            } else
-                                break;
-                        } else if (cleanContent.startsWith("[b=#")) {
-                            int end = cleanContent.indexOf("]");
-                            if (end > 0) {
-                                bgHex = cleanContent.substring(3, end);
-                                cleanContent = cleanContent.substring(end + 1);
-                            } else
-                                break;
-                        }
-                    }
-
-                    String divStyle = "class='msg-block'";
-                    String styleAttr = "color:" + fgHex + ";";
-                    if (bgHex != null) {
-                        styleAttr += " background-color:" + bgHex + ";";
-                    }
-
-                    boolean isMe = user.equalsIgnoreCase(username);
-                    if (isMe) {
-                        styleAttr += " text-align: right; margin-left: 50px;";
-                    } else {
-                        styleAttr += " margin-right: 50px;";
-                    }
-
-                    html.append("<div ").append(divStyle).append(" style='").append(styleAttr).append("'>");
-                    html.append("<div class='header' style='color:#999;'>").append(timePart).append(" - ").append(user)
-                            .append(":</div>");
-                    html.append("<div class='content'>").append(cleanContent).append("</div>");
-                    html.append("</div>");
-
-                    kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
-                    scrollToBottom();
+                    appendFormattedBlock(doc, timePart, user, content);
                     return;
                 }
 
-                // Regular message format: [user]: message
+                // Regular message format fallback
                 int split = msg.indexOf("]:");
                 if (split > 0) {
                     String user = msg.substring(1, split);
@@ -833,52 +995,15 @@ public class ChatGUI extends JFrame implements MessageListener {
                         user = user.substring(1);
                     String content = msg.substring(split + 3);
 
-                    // Generate current timestamp
-                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yy HH:mm:ss");
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
                     String timestamp = LocalDateTime.now().format(formatter);
 
-                    // Parser
-                    String fgHex = "#000000";
-                    String bgHex = null;
-                    String cleanContent = content;
-
-                    while (cleanContent.startsWith("[c=#") || cleanContent.startsWith("[b=#")) {
-                        if (cleanContent.startsWith("[c=#")) {
-                            int end = cleanContent.indexOf("]");
-                            if (end > 0) {
-                                fgHex = cleanContent.substring(3, end);
-                                cleanContent = cleanContent.substring(end + 1);
-                            } else
-                                break;
-                        } else if (cleanContent.startsWith("[b=#")) {
-                            int end = cleanContent.indexOf("]");
-                            if (end > 0) {
-                                bgHex = cleanContent.substring(3, end);
-                                cleanContent = cleanContent.substring(end + 1);
-                            } else
-                                break;
-                        }
-                    }
-
-                    String divStyle = "class='msg-block' style='color:" + fgHex + ";";
-                    if (bgHex != null) {
-                        divStyle += " background-color:" + bgHex + ";";
-                    }
-                    divStyle += "'";
-
-                    html.append("<div ").append(divStyle).append(">");
-                    html.append("<div class='header' style='color:#999;'>").append(timestamp).append(" - ").append(user)
-                            .append(":</div>");
-                    html.append("<div class='content'>").append(cleanContent).append("</div>");
-                    html.append("</div>");
-
-                    kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
-                    scrollToBottom();
+                    appendFormattedBlock(doc, timestamp, user, content);
                     return;
                 }
             }
 
-            // Fallback for simple messages (System logs etc)
+            // Fallback for simple messages
             String safeMsg = msg.replace("<", "&lt;").replace(">", "&gt;");
             kit.insertHTML(doc, doc.getLength(), "<div style='color:gray; font-style:italic;'>" + safeMsg + "</div>", 0,
                     0, null);
@@ -888,12 +1013,51 @@ public class ChatGUI extends JFrame implements MessageListener {
         }
     }
 
-    private void scrollToBottom() {
-        SwingUtilities.invokeLater(() -> chatArea.setCaretPosition(chatArea.getDocument().getLength()));
-    }
+    private void appendFormattedBlock(HTMLDocument doc, String timestamp, String user, String content)
+            throws Exception {
+        String fgHex = "#000000";
+        String bgHex = null;
+        String cleanContent = content;
 
-    private Color getUniqueColor(String name) {
-        return MsnTheme.TEXT_NORMAL;
+        while (cleanContent.startsWith("[c=#") || cleanContent.startsWith("[b=#")) {
+            if (cleanContent.startsWith("[c=#")) {
+                int end = cleanContent.indexOf("]");
+                if (end > 0) {
+                    fgHex = cleanContent.substring(3, end);
+                    cleanContent = cleanContent.substring(end + 1);
+                } else
+                    break;
+            } else if (cleanContent.startsWith("[b=#")) {
+                int end = cleanContent.indexOf("]");
+                if (end > 0) {
+                    bgHex = cleanContent.substring(3, end);
+                    cleanContent = cleanContent.substring(end + 1);
+                } else
+                    break;
+            }
+        }
+
+        String divStyle = "class='msg-block'";
+        String styleAttr = "color:" + fgHex + ";";
+        if (bgHex != null) {
+            styleAttr += " background-color:" + bgHex + ";";
+        }
+
+        boolean isMe = user.equalsIgnoreCase(username != null ? username : "");
+        if (isMe) {
+            styleAttr += " text-align: right; margin-left: 50px;";
+        } else {
+            styleAttr += " margin-right: 50px;";
+        }
+
+        StringBuilder html = new StringBuilder();
+        html.append("<div ").append(divStyle).append(" style='").append(styleAttr).append("'>");
+        html.append("<div class='header' style='color:#999;'>").append(timestamp).append(" - ").append(user)
+                .append(":</div>");
+        html.append("<div class='content'>").append(cleanContent).append("</div>");
+        html.append("</div>");
+
+        kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
     }
 
     @Override
@@ -971,7 +1135,8 @@ public class ChatGUI extends JFrame implements MessageListener {
                     String sender = parts[1]; // The person sending to me
                     String content = parts[2];
 
-                    String timestamp = new java.text.SimpleDateFormat("dd/MM/yy HH:mm:ss").format(new java.util.Date());
+                    String timestamp = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
+                            .format(new java.util.Date());
                     String formatted = "[" + timestamp + "] [" + sender + "]: " + content;
 
                     String remoteUser = sender;
@@ -986,7 +1151,8 @@ public class ChatGUI extends JFrame implements MessageListener {
                     String target = parts[1]; // The person I sent to
                     String content = parts[2];
 
-                    String timestamp = new java.text.SimpleDateFormat("dd/MM/yy HH:mm:ss").format(new java.util.Date());
+                    String timestamp = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
+                            .format(new java.util.Date());
                     String formatted = "[" + timestamp + "] [" + username + "]: " + content; // Using my username
 
                     String remoteUser = target;
@@ -1021,7 +1187,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                         }
                     } else {
                         // Fallback for standard PRIVMSG if any
-                        String timestamp = new java.text.SimpleDateFormat("dd/MM/yy HH:mm:ss")
+                        String timestamp = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss")
                                 .format(new java.util.Date());
                         formatted = "[" + timestamp + "] [" + sender + "]: " + content;
                     }
@@ -1082,6 +1248,23 @@ public class ChatGUI extends JFrame implements MessageListener {
                             }
                         } else {
                             appendToChat(content, Color.BLACK);
+                        }
+                    } else {
+                        // Background update
+                        if (content.startsWith("HISTORY:")) {
+                            try {
+                                String clean = content.substring("HISTORY:".length());
+                                StyledDocument doc = channelDocs.get(targetChannel);
+                                if (doc instanceof HTMLDocument) {
+                                    appendMessageToDoc((HTMLDocument) doc, clean);
+                                }
+                            } catch (Exception e) {
+                            }
+                        } else {
+                            StyledDocument doc = channelDocs.get(targetChannel);
+                            if (doc instanceof HTMLDocument) {
+                                appendMessageToDoc((HTMLDocument) doc, content);
+                            }
                         }
                     }
                 }
