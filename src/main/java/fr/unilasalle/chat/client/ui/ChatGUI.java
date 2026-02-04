@@ -15,6 +15,7 @@ import javax.swing.text.html.StyleSheet;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.KeyEvent;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -87,6 +88,24 @@ public class ChatGUI extends JFrame implements MessageListener {
         System.out.println("Connecting to Server...");
         client = new Client(hostname, port, this);
         client.execute();
+
+        // Initialize Sound Manager
+        SoundManager soundManager = new SoundManager();
+
+        // Global Mouse Listener for Click Sounds
+        Toolkit.getDefaultToolkit().addAWTEventListener(event -> {
+            if (event.getID() == MouseEvent.MOUSE_PRESSED) {
+                soundManager.playClick();
+            }
+        }, AWTEvent.MOUSE_EVENT_MASK);
+
+        // Global Key Listener for Typing Sounds
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(e -> {
+            if (e.getID() == KeyEvent.KEY_PRESSED) {
+                soundManager.playKey(e.getKeyCode() == KeyEvent.VK_SPACE);
+            }
+            return false;
+        });
 
         System.out.println("Window set to visible.");
         setVisible(true);
