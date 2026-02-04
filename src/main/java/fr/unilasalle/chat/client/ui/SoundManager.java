@@ -5,20 +5,19 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class SoundManager {
     private static final String MEDIA_DIR = "media/";
     private Map<String, Clip> soundCache = new HashMap<>();
-    private Random random = new Random();
+    private Timer timer = new Timer();
+    private TimerTask currentStopTask;
 
     public SoundManager() {
-        // Preload sounds to avoid playback delay
+        // Preload sounds
         loadSound("mouseClick.wav");
-        loadSound("clavier1.wav");
-        loadSound("clavier2.wav");
-        loadSound("clavier3.wav");
-        loadSound("clavierEspace.wav");
+        loadSound("clavierFull.wav");
     }
 
     private void loadSound(String filename) {
@@ -29,10 +28,7 @@ public class SoundManager {
                 return;
             }
             
-            // Open the stream properly
             AudioInputStream audioIn = AudioSystem.getAudioInputStream(file);
-            
-            // Get a clip specifically for this audio format
             DataLine.Info info = new DataLine.Info(Clip.class, audioIn.getFormat());
             Clip clip = (Clip) AudioSystem.getLine(info);
             
@@ -50,24 +46,44 @@ public class SoundManager {
     }
 
     public void playKey(boolean isSpace) {
-        if (isSpace) {
-            playCachedSound("clavierEspace.wav");
-        } else {
-            int r = random.nextInt(3) + 1; // 1, 2, or 3
-            playCachedSound("clavier" + r + ".wav");
+        // Argument ignored, we now play a continuous loop for any key
+        startTypingSound();
+    }
+
+    private synchronized void startTypingSound() {
+        Clip clip = soundCache.get("clavierFull.wav");
+        if (clip == null) return;
+
+        // Reset the inactivity timer
+        if (currentStopTask != null) {
+            currentStopTask.cancel();
         }
+
+        // Start looping if not already playing
+        if (!clip.isRunning()) {
+            clip.setFramePosition(0);
+            clip.loop(Clip.LOOP_CONTINUOUSLY);
+        }
+
+        // Schedule stop after 1 second of inactivity
+        currentStopTask = new TimerTask() {
+            @Override
+            public void run() {
+                if (clip.isRunning()) {
+                    clip.stop();
+                }
+            }
+        };
+        timer.schedule(currentStopTask, 200);
     }
 
     private void playCachedSound(String filename) {
         Clip clip = soundCache.get(filename);
         if (clip != null) {
-            // Stop if currently playing to allow rapid re-triggering
             if (clip.isRunning()) {
                 clip.stop();
             }
-            // Rewind to the beginning
             clip.setFramePosition(0);
-            // Play
             clip.start();
         }
     }
