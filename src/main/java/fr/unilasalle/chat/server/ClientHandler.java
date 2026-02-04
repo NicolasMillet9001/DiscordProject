@@ -71,6 +71,7 @@ public class ClientHandler extends Thread {
                             // Send channel list and user list directly to this client
                             writer.println("CHANNELLIST " + server.getChannelList());
                             writer.println("USERLIST " + channel + " " + server.getUsersInChannel(channel));
+                            writer.println("ALLUSERS " + String.join(",", server.getUserNames()));
 
                             // Broadcast updated user list to all users in the channel
                             server.broadcastUserList(channel);

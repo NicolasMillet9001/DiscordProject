@@ -170,6 +170,12 @@ public class Server {
         broadcastToChannel(channel, message, null); // null sender means system message
     }
 
+    void broadcastAllUsers() {
+        String users = String.join(",", getUserNames());
+        String message = "ALLUSERS " + users;
+        broadcast(message, null);
+    }
+
     void broadcastChannelList() {
         String channels = String.join(",", knownChannels);
         String message = "CHANNELLIST " + channels;
@@ -236,6 +242,7 @@ public class Server {
         }
 
         System.out.println(userName + " has connected");
+        broadcastAllUsers(); // Updates global list for everyone
         return true;
     }
 
@@ -246,6 +253,7 @@ public class Server {
         boolean removed = userThreads.remove(user);
         if (removed) {
             System.out.println("The user " + userName + " quitted");
+            broadcastAllUsers(); // Updates global list for everyone
         }
     }
 

@@ -20,6 +20,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 
 public class ChatGUI extends JFrame implements MessageListener {
     private Client client;
@@ -30,6 +32,8 @@ public class ChatGUI extends JFrame implements MessageListener {
     private JList<String> channelList;
     private DefaultListModel<String> friendsListModel;
     private JList<String> friendsList;
+    private JList<String> userList;
+    private Set<String> channelUsers = new HashSet<>();
 
     private boolean isPrivateMode = false; // true if chatting with a friend
 
@@ -573,7 +577,8 @@ public class ChatGUI extends JFrame implements MessageListener {
         userPanel.add(title, BorderLayout.NORTH);
 
         userListModel = new DefaultListModel<>();
-        JList<String> userList = new JList<>(userListModel);
+        userList = new JList<>(userListModel);
+        userList.setCellRenderer(new UserListRenderer());
         userList.setBackground(MsnTheme.SIDEBAR);
         userList.setForeground(MsnTheme.TEXT_NORMAL);
         userList.setFont(MsnTheme.FONT_MAIN);
@@ -583,6 +588,25 @@ public class ChatGUI extends JFrame implements MessageListener {
         userPanel.add(new JScrollPane(userList), BorderLayout.CENTER);
 
         add(userPanel, BorderLayout.EAST);
+    }
+
+    private class UserListRenderer extends DefaultListCellRenderer {
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
+                boolean cellHasFocus) {
+            Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            if (value instanceof String) {
+                String user = (String) value;
+                if (channelUsers.contains(user)) {
+                    setForeground(new Color(0, 180, 0)); // Green for same channel
+                    setFont(MsnTheme.FONT_BOLD);
+                } else {
+                    setForeground(MsnTheme.TEXT_NORMAL);
+                    setFont(MsnTheme.FONT_MAIN);
+                }
+            }
+            return c;
+        }
     }
 
     // Creating context menu for user list (Add Friend)
@@ -1199,11 +1223,24 @@ public class ChatGUI extends JFrame implements MessageListener {
 
             if (message.startsWith("USERLIST " + currentChannel + " ")) {
                 String users = message.substring(("USERLIST " + currentChannel + " ").length());
+                // Update specific channel user set for highlighting
+                channelUsers.clear();
+                for (String u : users.split(",")) {
+                    if (!u.isEmpty())
+                        channelUsers.add(u);
+                }
+                userList.repaint();
+                return;
+            }
+
+            if (message.startsWith("ALLUSERS ")) {
+                String users = message.substring("ALLUSERS ".length());
                 userListModel.clear();
                 for (String u : users.split(",")) {
                     if (!u.isEmpty())
                         userListModel.addElement(u);
                 }
+                userList.repaint();
                 return;
             }
 
@@ -1219,11 +1256,12 @@ public class ChatGUI extends JFrame implements MessageListener {
                             String users = content.substring(prefix.length());
                             // Only update if it matches current view
                             if (targetChannel.equals(currentChannel)) {
-                                userListModel.clear();
+                                channelUsers.clear();
                                 for (String u : users.split(",")) {
                                     if (!u.isEmpty())
-                                        userListModel.addElement(u);
+                                        channelUsers.add(u);
                                 }
+                                userList.repaint();
                             }
                         }
                         return;
