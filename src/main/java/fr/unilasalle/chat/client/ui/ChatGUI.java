@@ -569,8 +569,6 @@ public class ChatGUI extends JFrame implements MessageListener {
         });
     }
 
-
-
     private void createUserList() {
         JPanel userPanel = new JPanel(new BorderLayout());
         userPanel.setBackground(MsnTheme.SIDEBAR);
@@ -670,7 +668,7 @@ public class ChatGUI extends JFrame implements MessageListener {
             } else {
                 client.sendMessage(payload.toString());
             }
-            
+
             soundManager.playMessageSent();
 
             if (!text.startsWith("/")) {
@@ -1337,7 +1335,8 @@ public class ChatGUI extends JFrame implements MessageListener {
                                 appendMessageToDoc((HTMLDocument) doc, content);
                                 // Play sound if it's not me sending the message (basic check)
                                 // The server sends back my own messages too, but usually formatted.
-                                // If I want to avoid double sound (sent + received), I check sender name inside content?
+                                // If I want to avoid double sound (sent + received), I check sender name inside
+                                // content?
                                 // Content format: [timestamp] [User]: msg...
                                 if (!content.contains("[" + username + "]:")) {
                                     soundManager.playMessageReceived();
@@ -1399,6 +1398,7 @@ public class ChatGUI extends JFrame implements MessageListener {
     }
 
     private void rebuildFriendList(String diff) {
+        System.out.println("DEBUG CLIENT: Received FRIENDLIST payload: " + diff);
         java.util.List<Friend> online = new java.util.ArrayList<>();
         java.util.List<Friend> offline = new java.util.ArrayList<>();
 
@@ -1414,14 +1414,20 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
         }
 
-        friendsListModel.clear();
-        friendsListModel.addElement("En ligne (" + online.size() + ")");
-        for (Friend f : online)
-            friendsListModel.addElement(f);
+        System.out.println("DEBUG CLIENT: Parsed " + online.size() + " online, " + offline.size() + " offline.");
 
-        friendsListModel.addElement("Hors ligne (" + offline.size() + ")");
-        for (Friend f : offline)
-            friendsListModel.addElement(f);
+        SwingUtilities.invokeLater(() -> {
+            friendsListModel.clear();
+            friendsListModel.addElement("En ligne (" + online.size() + ")");
+            for (Friend f : online)
+                friendsListModel.addElement(f);
+
+            friendsListModel.addElement("Hors ligne (" + offline.size() + ")");
+            for (Friend f : offline)
+                friendsListModel.addElement(f);
+
+            friendsList.repaint(); // Force repaint just in case
+        });
     }
 
     private class FriendListRenderer extends DefaultListCellRenderer {

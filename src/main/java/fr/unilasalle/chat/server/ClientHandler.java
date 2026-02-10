@@ -58,6 +58,7 @@ public class ClientHandler extends Thread {
                         if (server.addUserName(parts[1])) {
                             this.userName = parts[1];
                             server.broadcastAllUsers(); // Update global list now that name is set
+                            System.out.println("DEBUG: triggering friend status update for " + this.userName);
                             server.broadcastFriendStatusUpdate(this.userName);
                             writer.println("LOGIN_SUCCESS " + this.userName);
                             writer.println("Welcome " + this.userName);
@@ -74,14 +75,11 @@ public class ClientHandler extends Thread {
                             writer.println("CHANNELLIST " + server.getChannelList());
                             writer.println("USERLIST " + channel + " " + server.getUsersInChannel(channel));
                             writer.println("ALLUSERS " + String.join(",", server.getUserNames()));
+                            server.sendFriendListUpdate(this.userName);
 
                             // Broadcast updated user list to all users in the channel
                             server.broadcastUserList(channel);
                             writer.println("CHANNELLIST " + server.getChannelList()); // Send initial channel list
-
-                            // Send Friend List
-                            java.util.List<String> friends = server.getDbService().getFriends(this.userName);
-                            writer.println("FRIENDLIST " + String.join(",", friends));
 
                             // Send Pending Friend Requests
                             java.util.List<String> pending = server.getDbService().getPendingRequests(this.userName);

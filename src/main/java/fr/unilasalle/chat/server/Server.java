@@ -25,7 +25,7 @@ public class Server {
 
     public void execute() {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("Chat Server is listening on port " + port);
+            System.out.println("Chat Server v2 (Debug) is listening on port " + port);
 
             while (true) {
                 Socket socket = serverSocket.accept();
@@ -158,20 +158,29 @@ public class Server {
         }
         StringBuilder sb = new StringBuilder();
         Set<String> onlineUsersLower = new HashSet<>();
+        Set<String> rawOnlineUsers = new HashSet<>();
         for (String u : getUserNames()) {
             onlineUsersLower.add(u.toLowerCase());
+            rawOnlineUsers.add(u);
         }
+
+        System.out.println("DEBUG: getFormattedFriendList for " + username);
+        System.out.println("DEBUG: Friends: " + friends);
+        System.out.println("DEBUG: Online Users (Raw): " + rawOnlineUsers);
+        System.out.println("DEBUG: Online Users (Lower): " + onlineUsersLower);
 
         for (String friend : friends) {
             if (sb.length() > 0)
                 sb.append(",");
             String status = onlineUsersLower.contains(friend.toLowerCase()) ? "online" : "offline";
+            System.out.println("DEBUG: Friend " + friend + " -> " + status);
             sb.append(friend).append(":").append(status);
         }
         return sb.toString();
     }
 
     void broadcastFriendStatusUpdate(String changedUser) {
+        System.out.println("DEBUG: Broadcasting status update for " + changedUser);
         // Prepare variable implementation
         // For every connected user, checks if 'changedUser' is in their friend list.
         // If so, send them a FRIENDLIST update.
@@ -185,6 +194,8 @@ public class Server {
                 }
             }
             if (isFriend) {
+                System.out.println("DEBUG: Sending update to " + user.getUserName() + " because they are friends with "
+                        + changedUser);
                 sendFriendListUpdate(user.getUserName());
             }
         }
