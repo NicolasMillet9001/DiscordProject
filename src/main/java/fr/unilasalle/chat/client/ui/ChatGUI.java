@@ -30,8 +30,8 @@ public class ChatGUI extends JFrame implements MessageListener {
     private DefaultListModel<String> userListModel;
     private DefaultListModel<String> channelListModel;
     private JList<String> channelList;
-    private DefaultListModel<String> friendsListModel;
-    private JList<String> friendsList;
+    private DefaultListModel<Object> friendsListModel;
+    private JList<Object> friendsList;
     private JList<String> userList;
     private Set<String> channelUsers = new HashSet<>();
 
@@ -45,6 +45,17 @@ public class ChatGUI extends JFrame implements MessageListener {
     private String password;
     private boolean registerMode;
     private HTMLEditorKit kit; // Helper for inserting HTML
+
+    private static class Friend {
+        String name;
+        boolean isOnline;
+
+        Friend(String name, boolean isOnline) {
+            this.name = name;
+            this.isOnline = isOnline;
+        }
+    }
+
     private SoundManager soundManager;
 
     public ChatGUI(String hostname, int port, String username, String password, boolean registerMode) {
@@ -262,34 +273,18 @@ public class ChatGUI extends JFrame implements MessageListener {
 
         friendsListModel = new DefaultListModel<>();
         friendsList = new JList<>(friendsListModel);
-        friendsList.setBackground(MsnTheme.SIDEBAR);
+        friendsList.setBackground(MsnTheme.SIDEBAR); // e.g. white or light gradient
         friendsList.setForeground(MsnTheme.TEXT_NORMAL);
         friendsList.setFont(MsnTheme.FONT_MAIN);
         friendsList.setFixedCellHeight(25);
 
-        friendsList.setCellRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
-                    boolean cellHasFocus) {
-                JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected,
-                        cellHasFocus);
-                label.setBorder(new EmptyBorder(2, 5, 2, 5));
-                if (isSelected) {
-                    label.setBackground(MsnTheme.SELECTION_BG);
-                    label.setBorder(BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR));
-                }
-                // Use a different icon for users (maybe same for now or load user.png)
-                // label.setIcon(UIManager.getIcon("FileView.computerIcon"));
-                label.setIcon(null); // No icon for now, or maybe a user emoji/icon later
-                return label;
-            }
-        });
+        friendsList.setCellRenderer(new FriendListRenderer());
 
         friendsList.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
-                String selected = friendsList.getSelectedValue();
-                if (selected != null) {
-                    switchPrivateChat(selected);
+                Object selected = friendsList.getSelectedValue();
+                if (selected instanceof Friend) {
+                    switchPrivateChat(((Friend) selected).name);
                 }
             }
         });
@@ -301,12 +296,15 @@ public class ChatGUI extends JFrame implements MessageListener {
                     int row = friendsList.locationToIndex(e.getPoint());
                     friendsList.setSelectedIndex(row);
                     if (row != -1) {
-                        String selected = friendsList.getSelectedValue();
-                        JPopupMenu menu = new JPopupMenu();
-                        JMenuItem msgItem = new JMenuItem("Envoyer un message");
-                        msgItem.addActionListener(ev -> switchPrivateChat(selected));
-                        menu.add(msgItem);
-                        menu.show(friendsList, e.getX(), e.getY());
+                        Object val = friendsListModel.getElementAt(row);
+                        if (val instanceof Friend) {
+                            String selected = ((Friend) val).name;
+                            JPopupMenu menu = new JPopupMenu();
+                            JMenuItem msgItem = new JMenuItem("Envoyer un message");
+                            msgItem.addActionListener(ev -> switchPrivateChat(selected));
+                            menu.add(msgItem);
+                            menu.show(friendsList, e.getX(), e.getY());
+                        }
                     }
                 }
             }
@@ -1147,12 +1145,8 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
 
             if (message.startsWith("FRIENDLIST ")) {
-                String friends = message.substring("FRIENDLIST ".length());
-                friendsListModel.clear();
-                for (String f : friends.split(",")) {
-                    if (!f.isEmpty())
-                        friendsListModel.addElement(f);
-                }
+                String content = message.substring("FRIENDLIST ".length());
+                rebuildFriendList(content);
                 return;
             }
 
@@ -1413,5 +1407,66 @@ public class ChatGUI extends JFrame implements MessageListener {
                 e.printStackTrace();
             }
         });
+    }
+
+    private void rebuildFriendList(String diff) {
+        java.util.List<Friend> online = new java.util.ArrayList<>();
+        java.util.List<Friend> offline = new java.util.ArrayList<>();
+
+        if (!diff.isEmpty()) {
+            for (String part : diff.split(",")) {
+                String[] data = part.split(":");
+                String name = data[0];
+                boolean isOnline = data.length > 1 && data[1].equals("online");
+                if (isOnline)
+                    online.add(new Friend(name, true));
+                else
+                    offline.add(new Friend(name, false));
+            }
+        }
+
+        friendsListModel.clear();
+        friendsListModel.addElement("En ligne (" + online.size() + ")");
+        for (Friend f : online)
+            friendsListModel.addElement(f);
+
+        friendsListModel.addElement("Hors ligne (" + offline.size() + ")");
+        for (Friend f : offline)
+            friendsListModel.addElement(f);
+    }
+
+    private class FriendListRenderer extends DefaultListCellRenderer {
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
+                boolean cellHasFocus) {
+            // For Headers
+            if (value instanceof String) {
+                JLabel lbl = new JLabel((String) value);
+                lbl.setOpaque(true);
+                lbl.setBackground(new Color(220, 230, 244)); // Light blue header
+                lbl.setForeground(new Color(40, 60, 100));
+                lbl.setFont(MsnTheme.FONT_BOLD);
+                lbl.setBorder(new EmptyBorder(2, 5, 2, 5));
+                return lbl;
+            }
+
+            // For Friends
+            if (value instanceof Friend) {
+                Friend f = (Friend) value;
+                JLabel lbl = (JLabel) super.getListCellRendererComponent(list, f.name, index, isSelected, cellHasFocus);
+                lbl.setBorder(new EmptyBorder(2, 20, 2, 5)); // Indent
+                if (f.isOnline) {
+                    lbl.setForeground(new Color(0, 128, 0)); // Green
+                    lbl.setText("<html><b>" + f.name + "</b> (En ligne)</html>");
+                } else {
+                    lbl.setForeground(Color.GRAY);
+                    lbl.setText(f.name);
+                }
+
+                // Add icon if available, for now just text distinction
+                return lbl;
+            }
+            return super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+        }
     }
 }

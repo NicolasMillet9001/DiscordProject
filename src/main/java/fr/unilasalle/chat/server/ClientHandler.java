@@ -58,6 +58,7 @@ public class ClientHandler extends Thread {
                         if (server.addUserName(parts[1])) {
                             this.userName = parts[1];
                             server.broadcastAllUsers(); // Update global list now that name is set
+                            server.broadcastFriendStatusUpdate(this.userName);
                             writer.println("LOGIN_SUCCESS " + this.userName);
                             writer.println("Welcome " + this.userName);
                             writer.println("You are in channel: " + channel);
@@ -243,8 +244,7 @@ public class ClientHandler extends Thread {
                             }
                         }
                     } else if (subCmd.startsWith("list")) {
-                        java.util.List<String> friends = server.getDbService().getFriends(this.userName);
-                        sendMessage("FRIENDLIST " + String.join(",", friends));
+                        server.sendFriendListUpdate(this.userName);
                     }
                 }
                 break;
