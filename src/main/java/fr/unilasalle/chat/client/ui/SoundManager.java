@@ -18,6 +18,8 @@ public class SoundManager {
         // Preload sounds
         loadSound("mouseClick.wav");
         loadSound("clavierFull.wav");
+        loadSound("messageSent.wav");
+        loadSound("messageReceived.wav");
     }
 
     private void loadSound(String filename) {
@@ -48,6 +50,14 @@ public class SoundManager {
     public void playKey(boolean isSpace) {
         // Argument ignored, we now play a continuous loop for any key
         startTypingSound();
+    }
+
+    public void playMessageSent() {
+        playCachedSound("messageSent.wav");
+    }
+
+    public void playMessageReceived() {
+        playCachedSound("messageReceived.wav");
     }
 
     private synchronized void startTypingSound() {
