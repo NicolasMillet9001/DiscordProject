@@ -15,7 +15,7 @@ public class LoginDialog extends JDialog {
     private boolean registerMode = false;
 
     public LoginDialog(Frame parent) {
-        super(parent, "MSN Messenger - Sign In", true);
+        super(parent, "MSN Messenger - Connexion", true);
 
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(MsnTheme.BACKGROUND);
@@ -24,7 +24,7 @@ public class LoginDialog extends JDialog {
         cs.fill = GridBagConstraints.HORIZONTAL;
         
         // Header Graphic (Simulated with Label)
-        JLabel logo = new JLabel("MSN Service");
+        JLabel logo = new JLabel("Service MSN");
         logo.setFont(new Font("Trebuchet MS", Font.BOLD, 16));
         logo.setForeground(MsnTheme.HEADER_TOP);
         cs.gridx = 0;
@@ -34,7 +34,7 @@ public class LoginDialog extends JDialog {
         panel.add(logo, cs);
 
         // --- Username ---
-        JLabel userLabel = new JLabel("E-mail address:");
+        JLabel userLabel = new JLabel("Adresse de messagerie :");
         userLabel.setFont(MsnTheme.FONT_MAIN);
         cs.gridx = 0;
         cs.gridy = 1;
@@ -50,7 +50,7 @@ public class LoginDialog extends JDialog {
         panel.add(usernameField, cs);
 
         // --- Password ---
-        JLabel passLabel = new JLabel("Password:");
+        JLabel passLabel = new JLabel("Mot de passe :");
         passLabel.setFont(MsnTheme.FONT_MAIN);
         cs.gridx = 0;
         cs.gridy = 2;
@@ -65,7 +65,7 @@ public class LoginDialog extends JDialog {
         panel.add(passwordField, cs);
 
         // --- Server IP ---
-        JLabel ipLabel = new JLabel("Server IP:");
+        JLabel ipLabel = new JLabel("IP du serveur :");
         ipLabel.setFont(MsnTheme.FONT_MAIN);
         cs.gridx = 0;
         cs.gridy = 3;
@@ -80,7 +80,7 @@ public class LoginDialog extends JDialog {
         panel.add(ipField, cs);
 
         // --- Port ---
-        JLabel portLabel = new JLabel("Port:");
+        JLabel portLabel = new JLabel("Port :");
         portLabel.setFont(MsnTheme.FONT_MAIN);
         cs.gridx = 0;
         cs.gridy = 4;
@@ -95,9 +95,9 @@ public class LoginDialog extends JDialog {
         panel.add(portField, cs);
 
         // --- Buttons ---
-        JButton btnLogin = new WindowsXPButton("Log In");
+        JButton btnLogin = new WindowsXPButton("Se connecter");
 
-        JButton btnRegister = new WindowsXPButton("Register");
+        JButton btnRegister = new WindowsXPButton("S'inscrire");
         // Make register look like a link or secondary button? 
         // For now, standard button but maybe different text color?
         
@@ -117,7 +117,7 @@ public class LoginDialog extends JDialog {
             }
         });
 
-        JButton btnCancel = new WindowsXPButton("Cancel");
+        JButton btnCancel = new WindowsXPButton("Annuler");
         btnCancel.addActionListener(e -> dispose());
         
         JPanel bp = new JPanel();
@@ -146,8 +146,8 @@ public class LoginDialog extends JDialog {
     private boolean validateInput() {
         if (getUsername().isEmpty() || getPassword().isEmpty()) {
             JOptionPane.showMessageDialog(LoginDialog.this,
-                    "Username and Password are required.",
-                    "Error",
+                    "Le nom d'utilisateur et le mot de passe sont requis.",
+                    "Erreur",
                     JOptionPane.ERROR_MESSAGE);
             return false;
         }

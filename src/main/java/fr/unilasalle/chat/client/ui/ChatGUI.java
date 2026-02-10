@@ -139,7 +139,7 @@ public class ChatGUI extends JFrame implements MessageListener {
 
         header.add(appTitle, BorderLayout.WEST);
 
-        JLabel userStatus = new JLabel("<html>Logged in as <b>" + username + "</b><br>(Online)</html>");
+        JLabel userStatus = new JLabel("<html>Connecté(e) en tant que <b>" + username + "</b><br>(En ligne)</html>");
         userStatus.setFont(MsnTheme.FONT_MAIN);
         userStatus.setForeground(Color.WHITE);
         userStatus.setHorizontalAlignment(SwingConstants.RIGHT);
@@ -264,7 +264,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         JPanel friendsPanel = new JPanel(new BorderLayout());
         friendsPanel.setBackground(MsnTheme.SIDEBAR);
 
-        JLabel friendsTitle = new JLabel(" Friends");
+        JLabel friendsTitle = new JLabel(" Amis");
         friendsTitle.setFont(MsnTheme.FONT_BOLD);
         friendsTitle.setForeground(MsnTheme.HEADER_TOP);
         friendsTitle.setBorder(new EmptyBorder(5, 5, 5, 5));
@@ -382,7 +382,7 @@ public class ChatGUI extends JFrame implements MessageListener {
     }
 
     private void promptCreateChannel() {
-        String name = JOptionPane.showInputDialog(this, "Enter conversation name:", "Start Conversation",
+        String name = JOptionPane.showInputDialog(this, "Nom de la conversation :", "Nouvelle conversation",
                 JOptionPane.PLAIN_MESSAGE);
         if (name != null && !name.trim().isEmpty()) {
             name = name.trim().replace("#", "").replace(" ", "_"); // Sanitize
@@ -392,10 +392,10 @@ public class ChatGUI extends JFrame implements MessageListener {
 
     private void promptRenameChannel(String oldName) {
         if (oldName.equalsIgnoreCase("general")) {
-            JOptionPane.showMessageDialog(this, "You cannot rename general channel.");
+            JOptionPane.showMessageDialog(this, "Vous ne pouvez pas renommer le canal général.");
             return;
         }
-        String newName = JOptionPane.showInputDialog(this, "Rename " + oldName + " to:", "Rename Channel",
+        String newName = JOptionPane.showInputDialog(this, "Renommer " + oldName + " en :", "Renommer la conversation",
                 JOptionPane.PLAIN_MESSAGE);
         if (newName != null && !newName.trim().isEmpty()) {
             newName = newName.trim().replace("#", "").replace(" ", "_");
@@ -406,11 +406,11 @@ public class ChatGUI extends JFrame implements MessageListener {
 
     private void promptDeleteChannel(String name) {
         if (name.equalsIgnoreCase("general")) {
-            JOptionPane.showMessageDialog(this, "You cannot delete general channel.");
+            JOptionPane.showMessageDialog(this, "Vous ne pouvez pas supprimer le canal général.");
             return;
         }
-        int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete #" + name + "?",
-                "Confirm Delete", JOptionPane.YES_NO_OPTION);
+        int confirm = JOptionPane.showConfirmDialog(this, "Êtes-vous sûr de vouloir supprimer la conversation #" + name + " ?",
+                "Confirmer la suppression", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             client.sendMessage("/delete " + name);
         }
@@ -425,7 +425,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         JPanel chatHeader = new JPanel(new FlowLayout(FlowLayout.LEFT));
         chatHeader.setBackground(Color.WHITE);
         chatHeader.setBorder(new MatteBorder(0, 0, 1, 0, MsnTheme.BORDER_COLOR));
-        JLabel talkingTo = new JLabel("Chatting in " + currentChannel);
+        JLabel talkingTo = new JLabel("Discussion dans " + currentChannel);
         talkingTo.setFont(MsnTheme.FONT_TITLE);
         talkingTo.setForeground(MsnTheme.TEXT_NORMAL);
         chatHeader.add(talkingTo);
@@ -460,10 +460,10 @@ public class ChatGUI extends JFrame implements MessageListener {
         JButton colorBtn = new JButton("A");
         colorBtn.setFont(new Font("Georgia", Font.BOLD, 14));
         colorBtn.setForeground(Color.BLACK);
-        colorBtn.setToolTipText("Change Text Color");
+        colorBtn.setToolTipText("Choisir la couleur du texte");
         styleToolbarButton(colorBtn);
         colorBtn.addActionListener(e -> {
-            Color newColor = JColorChooser.showDialog(this, "Choose Text Color", msgTextColor);
+            Color newColor = JColorChooser.showDialog(this, "Choisir la couleur du texte", msgTextColor);
             if (newColor != null) {
                 msgTextColor = newColor;
                 colorBtn.setForeground(newColor);
@@ -475,10 +475,10 @@ public class ChatGUI extends JFrame implements MessageListener {
         bgBtn.setFont(new Font("Arial", Font.BOLD, 14));
         bgBtn.setBackground(Color.LIGHT_GRAY);
         bgBtn.setForeground(Color.WHITE);
-        bgBtn.setToolTipText("Change Background Color");
+        bgBtn.setToolTipText("Choisir la couleur de fond");
         styleToolbarButton(bgBtn);
         bgBtn.addActionListener(e -> {
-            Color newColor = JColorChooser.showDialog(this, "Choose Background Color", msgBgColor);
+            Color newColor = JColorChooser.showDialog(this, "Choisir la couleur de fond", msgBgColor);
             if (newColor != null) {
                 msgBgColor = newColor;
                 bgBtn.setBackground(newColor);
@@ -488,7 +488,7 @@ public class ChatGUI extends JFrame implements MessageListener {
 
         JButton resetBtn = new JButton("x");
         resetBtn.setFont(new Font("Arial", Font.PLAIN, 12));
-        resetBtn.setToolTipText("Reset Styles");
+        resetBtn.setToolTipText("Réinitialiser le style");
         styleToolbarButton(resetBtn);
         resetBtn.addActionListener(e -> {
             msgTextColor = Color.BLACK;
@@ -533,8 +533,8 @@ public class ChatGUI extends JFrame implements MessageListener {
 
         inputPanel.add(inputField, BorderLayout.CENTER);
 
-        JButton sendBtn = new WindowsXPButton("Send");
-        sendBtn.setPreferredSize(new Dimension(70, 0));
+        JButton sendBtn = new WindowsXPButton("Envoyer");
+        sendBtn.setPreferredSize(new Dimension(90, 0));
         sendBtn.addActionListener(e -> sendMessage());
 
         JPanel sendPanel = new JPanel(new BorderLayout());
@@ -1104,12 +1104,12 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
 
             if (message.startsWith("LOGIN_SUCCESS")) {
-                appendToChat("System: Logged in successfully!", Color.GRAY);
+                appendToChat("Système : Connexion réussie !", Color.GRAY);
                 return;
             }
 
             if (message.equals("REGISTRATION_SUCCESS")) {
-                appendToChat("System: Account created! Logging in...", Color.GRAY);
+                appendToChat("Système : Compte créé ! Connexion en cours...", Color.GRAY);
                 client.sendMessage("/login " + username + " " + password);
                 return;
             }
@@ -1134,8 +1134,8 @@ public class ChatGUI extends JFrame implements MessageListener {
                 System.out.println("DEBUG: Received FRIEND_REQ: " + message);
                 String requester = message.substring("FRIEND_REQ ".length());
                 int response = JOptionPane.showConfirmDialog(this,
-                        "You have a friend request from " + requester + ".\nDo you want to accept?",
-                        "Friend Request",
+                        "Vous avez une demande d'ami de " + requester + ".\nVoulez-vous accepter ?",
+                        "Demande d'ami",
                         JOptionPane.YES_NO_OPTION);
 
                 if (response == JOptionPane.YES_OPTION) {
