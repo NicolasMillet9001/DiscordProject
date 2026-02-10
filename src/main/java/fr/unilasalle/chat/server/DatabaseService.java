@@ -138,18 +138,18 @@ public class DatabaseService {
                         String[] parts = ts.split(" ");
                         String datePart = parts[0]; // YYYY-MM-DD
                         String timePortion = parts[1]; // HH:MM:SS
-                        
+
                         // Parse date
                         String[] dateComponents = datePart.split("-");
                         if (dateComponents.length == 3) {
                             String year = dateComponents[0].substring(2); // Get last 2 digits of year
                             String month = dateComponents[1];
                             String day = dateComponents[2];
-                            
+
                             // Remove milliseconds from time if any
                             if (timePortion.contains("."))
                                 timePortion = timePortion.split("\\.")[0];
-                            
+
                             timePart = day + "/" + month + "/" + year + " " + timePortion;
                         }
                     }
@@ -236,6 +236,27 @@ public class DatabaseService {
             return rows > 0;
         } catch (SQLException e) {
             System.out.println("Error accepting friend: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean rejectRequest(String requester, String target) {
+        // requester is the one rejecting (so they are user2, target is user1)
+        // OR target rejected requester (so target is user2, requester is user1)
+        // Basically we want to delete PENDING between these two wherever they are.
+        // Usually target sent request to requester. So target=user1, requester=user2.
+
+        String sql = "DELETE FROM friends WHERE ((user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)) AND status = 'PENDING'";
+        try (Connection conn = connect();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, target);
+            pstmt.setString(2, requester);
+            pstmt.setString(3, requester);
+            pstmt.setString(4, target);
+            int rows = pstmt.executeUpdate();
+            return rows > 0;
+        } catch (SQLException e) {
+            System.out.println("Error rejecting friend: " + e.getMessage());
             return false;
         }
     }
