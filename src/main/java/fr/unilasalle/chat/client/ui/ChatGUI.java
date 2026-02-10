@@ -172,8 +172,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         title.setBorder(new EmptyBorder(5, 5, 5, 5));
         titlePanel.add(title, BorderLayout.CENTER);
 
-        JButton addBtn = new JButton("<html><b>+ Create</b></html>");
-        styleXPButton(addBtn);
+        JButton addBtn = new WindowsXPButton("<html><b>Créer</b></html>");
         addBtn.setPreferredSize(new Dimension(70, 25));
         addBtn.addActionListener(e -> promptCreateChannel());
 
@@ -536,8 +535,7 @@ public class ChatGUI extends JFrame implements MessageListener {
 
         inputPanel.add(inputField, BorderLayout.CENTER);
 
-        JButton sendBtn = new JButton("Send");
-        styleXPButton(sendBtn);
+        JButton sendBtn = new WindowsXPButton("Send");
         sendBtn.setPreferredSize(new Dimension(70, 0));
         sendBtn.addActionListener(e -> sendMessage());
 
@@ -573,26 +571,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         });
     }
 
-    // Style helper for buttons
-    private void styleXPButton(JButton btn) {
-        btn.setBackground(MsnTheme.ACTION_BG);
-        btn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR),
-                new EmptyBorder(2, 5, 2, 5)));
-        btn.setFocusPainted(false);
-        btn.setFont(MsnTheme.FONT_MAIN);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        btn.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) {
-                btn.setBackground(MsnTheme.SELECTION_BG);
-            }
-
-            public void mouseExited(MouseEvent e) {
-                btn.setBackground(MsnTheme.ACTION_BG);
-            }
-        });
-    }
 
     private void createUserList() {
         JPanel userPanel = new JPanel(new BorderLayout());

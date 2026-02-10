@@ -95,11 +95,9 @@ public class LoginDialog extends JDialog {
         panel.add(portField, cs);
 
         // --- Buttons ---
-        JButton btnLogin = new JButton("Log In");
-        styleXPButton(btnLogin);
+        JButton btnLogin = new WindowsXPButton("Log In");
 
-        JButton btnRegister = new JButton("Register");
-        styleXPButton(btnRegister);
+        JButton btnRegister = new WindowsXPButton("Register");
         // Make register look like a link or secondary button? 
         // For now, standard button but maybe different text color?
         
@@ -119,8 +117,7 @@ public class LoginDialog extends JDialog {
             }
         });
 
-        JButton btnCancel = new JButton("Cancel");
-        styleXPButton(btnCancel);
+        JButton btnCancel = new WindowsXPButton("Cancel");
         btnCancel.addActionListener(e -> dispose());
         
         JPanel bp = new JPanel();
@@ -165,27 +162,6 @@ public class LoginDialog extends JDialog {
         tf.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR),
                 BorderFactory.createEmptyBorder(3, 3, 3, 3)));
-    }
-
-    private void styleXPButton(JButton btn) {
-        btn.setBackground(MsnTheme.ACTION_BG);
-        btn.setForeground(Color.BLACK);
-        btn.setFocusPainted(false);
-        btn.setFont(MsnTheme.FONT_MAIN);
-        btn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR),
-                new EmptyBorder(4, 10, 4, 10)
-        ));
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        
-        btn.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) {
-                btn.setBackground(MsnTheme.SELECTION_BG);
-            }
-            public void mouseExited(MouseEvent e) {
-                btn.setBackground(MsnTheme.ACTION_BG);
-            }
-        });
     }
 
     public String getUsername() {
