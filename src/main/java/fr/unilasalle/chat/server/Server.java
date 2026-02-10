@@ -144,9 +144,48 @@ public class Server {
     void sendFriendListUpdate(String username) {
         for (ClientHandler user : userThreads) {
             if (user.getUserName().equalsIgnoreCase(username)) {
-                java.util.List<String> friends = dbService.getFriends(username);
-                user.sendMessage("FRIENDLIST " + String.join(",", friends));
+                String friendListMsg = getFormattedFriendList(username);
+                user.sendMessage("FRIENDLIST " + friendListMsg);
                 return;
+            }
+        }
+    }
+
+    private String getFormattedFriendList(String username) {
+        java.util.List<String> friends = dbService.getFriends(username);
+        if (friends.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        Set<String> onlineUsersLower = new HashSet<>();
+        for (String u : getUserNames()) {
+            onlineUsersLower.add(u.toLowerCase());
+        }
+
+        for (String friend : friends) {
+            if (sb.length() > 0)
+                sb.append(",");
+            String status = onlineUsersLower.contains(friend.toLowerCase()) ? "online" : "offline";
+            sb.append(friend).append(":").append(status);
+        }
+        return sb.toString();
+    }
+
+    void broadcastFriendStatusUpdate(String changedUser) {
+        // Prepare variable implementation
+        // For every connected user, checks if 'changedUser' is in their friend list.
+        // If so, send them a FRIENDLIST update.
+        for (ClientHandler user : userThreads) {
+            java.util.List<String> friends = dbService.getFriends(user.getUserName());
+            boolean isFriend = false;
+            for (String f : friends) {
+                if (f.equalsIgnoreCase(changedUser)) {
+                    isFriend = true;
+                    break;
+                }
+            }
+            if (isFriend) {
+                sendFriendListUpdate(user.getUserName());
             }
         }
     }
@@ -266,7 +305,9 @@ public class Server {
         boolean removed = userThreads.remove(user);
         if (removed) {
             System.out.println("The user " + userName + " quitted");
+            System.out.println("The user " + userName + " quitted");
             broadcastAllUsers(); // Updates global list for everyone
+            broadcastFriendStatusUpdate(userName); // Update status for friends
         }
     }
 
