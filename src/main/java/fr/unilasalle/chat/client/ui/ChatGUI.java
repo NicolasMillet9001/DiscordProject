@@ -524,6 +524,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                         code == java.awt.event.KeyEvent.VK_ALT_GRAPH ||
                         code == java.awt.event.KeyEvent.VK_META ||
                         code == java.awt.event.KeyEvent.VK_CAPS_LOCK ||
+                        code == java.awt.event.KeyEvent.VK_ENTER ||
                         e.isActionKey()) {
                     return;
                 }
@@ -690,6 +691,8 @@ public class ChatGUI extends JFrame implements MessageListener {
             } else {
                 client.sendMessage(payload.toString());
             }
+            
+            soundManager.playMessageSent();
 
             if (!text.startsWith("/")) {
                 // appendToChat("[" + username + "]: " + payload.toString(),
@@ -1353,6 +1356,13 @@ public class ChatGUI extends JFrame implements MessageListener {
                             StyledDocument doc = channelDocs.get(targetChannel);
                             if (doc instanceof HTMLDocument) {
                                 appendMessageToDoc((HTMLDocument) doc, content);
+                                // Play sound if it's not me sending the message (basic check)
+                                // The server sends back my own messages too, but usually formatted.
+                                // If I want to avoid double sound (sent + received), I check sender name inside content?
+                                // Content format: [timestamp] [User]: msg...
+                                if (!content.contains("[" + username + "]:")) {
+                                    soundManager.playMessageReceived();
+                                }
                             }
                         }
                     }
