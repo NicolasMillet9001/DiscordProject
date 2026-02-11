@@ -12,11 +12,22 @@ public class Server {
     private Set<ClientHandler> userThreads = ConcurrentHashMap.newKeySet();
     private DatabaseService dbService;
     private Set<String> knownChannels = ConcurrentHashMap.newKeySet();
+    private fr.unilasalle.chat.audio.AudioServer audioServer;
 
     public Server(int port) {
         this.port = port;
         this.dbService = new DatabaseService();
         this.knownChannels.add("general");
+        try {
+            this.audioServer = new fr.unilasalle.chat.audio.AudioServer(port + 1); // Start audio on TCP port + 1
+            this.audioServer.start();
+        } catch (java.net.SocketException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public fr.unilasalle.chat.audio.AudioServer getAudioServer() {
+        return audioServer;
     }
 
     public DatabaseService getDbService() {
@@ -349,5 +360,9 @@ public class Server {
 
     boolean hasUsers() {
         return !this.userThreads.isEmpty();
+    }
+
+    public Set<ClientHandler> getUserThreads() {
+        return userThreads;
     }
 }

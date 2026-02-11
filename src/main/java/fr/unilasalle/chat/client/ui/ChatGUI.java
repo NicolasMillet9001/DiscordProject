@@ -25,8 +25,10 @@ import java.util.HashSet;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.Base64;
+import java.net.InetAddress;
 import javax.swing.event.HyperlinkListener;
 import javax.swing.event.HyperlinkEvent;
+import fr.unilasalle.chat.audio.AudioClient; // Import AudioClient
 
 public class ChatGUI extends JFrame implements MessageListener {
     private Client client;
@@ -53,6 +55,8 @@ public class ChatGUI extends JFrame implements MessageListener {
     private boolean registerMode;
     private HTMLEditorKit kit; // Helper for inserting HTML
     private JLabel headerAvatar;
+    private AudioClient audioClient;
+    private boolean inCall = false;
 
     private static class Friend {
         String name;
@@ -67,8 +71,12 @@ public class ChatGUI extends JFrame implements MessageListener {
     }
 
     private SoundManager soundManager;
+    private String serverHost;
+    private int serverPort;
 
     public ChatGUI(String hostname, int port, String username, String password, boolean registerMode) {
+        this.serverHost = hostname;
+        this.serverPort = port;
         this.username = username;
         this.password = password;
         this.registerMode = registerMode;
@@ -637,6 +645,49 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
         });
         toolbar.add(fileBtn);
+
+        JButton callBtn = new JButton("Tel");
+        callBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        callBtn.setToolTipText("Appeler un utilisateur (Privé)");
+        styleToolbarButton(callBtn);
+        // Green phone icon would be better
+        callBtn.setForeground(new Color(0, 128, 0));
+        callBtn.addActionListener(e -> {
+            if (inCall) {
+                // Hangup
+                client.sendMessage("/hangup");
+                endCall();
+                callBtn.setText("Tel");
+                callBtn.setForeground(new Color(0, 128, 0));
+            } else {
+                // Initiating call
+                // Only allowed in private chat or ask for username
+                String target = null;
+                if (isPrivateMode) {
+                   // deduce target from private room name? !PRIVATE_user1_user2
+                   // room name: !PRIVATE_Alice_Bob. If I am Alice, target is Bob.
+                   String room = currentChannel;
+                   if (room.startsWith("!PRIVATE_")) {
+                       String[] p = room.substring(9).split("_");
+                       if (p.length >= 2) {
+                           if (p[0].equalsIgnoreCase(username)) target = p[1];
+                           else target = p[0];
+                       }
+                   }
+                }
+                
+                if (target == null) {
+                    target = JOptionPane.showInputDialog(this, "Entrez le nom de l'utilisateur à appeler :");
+                }
+
+                if (target != null && !target.trim().isEmpty()) {
+                    client.sendMessage("/call " + target);
+                    callBtn.setText("Fin");
+                    callBtn.setForeground(Color.RED);
+                }
+            }
+        });
+        toolbar.add(callBtn);
 
         inputPanel.add(toolbar, BorderLayout.NORTH);
 
@@ -1637,9 +1688,54 @@ public class ChatGUI extends JFrame implements MessageListener {
                  return;
             }
 
+            if (message.startsWith("CALL_INCOMING ")) {
+                String caller = message.substring("CALL_INCOMING ".length());
+                // Play ringtone?
+                int resp = JOptionPane.showConfirmDialog(this, "Appel entrant de " + caller + ". Accepter ?", "Appel Entrant", JOptionPane.YES_NO_OPTION);
+                if (resp == JOptionPane.YES_OPTION) {
+                    client.sendMessage("/accept " + caller);
+                    startCall(caller);
+                } else {
+                    client.sendMessage("/deny " + caller);
+                }
+                return;
+            }
+            
+            if (message.startsWith("CALL_ACCEPTED ")) {
+                String partner = message.substring("CALL_ACCEPTED ".length());
+                appendToChat("Appel accepté par " + partner + ". Connexion Audio...", Color.GREEN);
+                startCall(partner);
+                return;
+            }
+            
+            if (message.startsWith("CALL_DENIED ")) {
+                appendToChat("Appel refusé.", Color.RED);
+                // Reset UI state if needed
+                return;
+            }
+
             // Fallback
             appendToChat(message, Color.BLACK);
         });
+    }
+
+    private void startCall(String partner) {
+        if (inCall) return;
+        inCall = true;
+        // Start Audio Client on Port (Server Port + 1 usually)
+        
+        audioClient = new AudioClient(serverHost, serverPort + 1, username);
+        audioClient.startCall();
+        appendToChat("Appel vocal actif.", Color.BLUE);
+    }
+    
+    private void endCall() {
+        if (audioClient != null) {
+            audioClient.stopCall();
+            audioClient = null;
+        }
+        inCall = false;
+        appendToChat("Appel terminé.", Color.GRAY);
     }
 
     class XPGradientPanel extends JPanel {

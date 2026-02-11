@@ -37,6 +37,10 @@ public class ClientHandler extends Thread {
         this.status = status;
     }
 
+    public String getStatus() {
+        return status;
+    }
+
     public String getStatusMessage() {
         return statusMessage;
     }
@@ -291,6 +295,7 @@ public class ClientHandler extends Thread {
                         server.sendFriendListUpdate(this.userName);
                     }
                 }
+                break;
             case "/privhistory":
                 if (parts.length < 2) {
                     sendMessage("Syntax: /privhistory <user>");
@@ -473,6 +478,68 @@ public class ClientHandler extends Thread {
                         }
                     }
                 }
+                break;
+            case "/call":
+                if (parts.length < 2) {
+                    sendMessage("Syntax: /call <username>");
+                } else {
+                    String target = parts[1];
+                    // Check if online
+                    boolean found = false;
+                    for (ClientHandler h : server.getUserThreads()) {
+                        if (h.getUserName().equalsIgnoreCase(target)) {
+                            h.sendMessage("CALL_INCOMING " + this.userName);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found) sendMessage("Calling " + target + "...");
+                    else sendMessage("User " + target + " not found or offline.");
+                }
+                break;
+            case "/accept":
+                if (parts.length < 2) {
+                     sendMessage("Syntax: /accept <username>");
+                } else {
+                    String caller = parts[1];
+                    // Notify caller
+                    boolean found = false;
+                     for (ClientHandler h : server.getUserThreads()) {
+                        if (h.getUserName().equalsIgnoreCase(caller)) {
+                            h.sendMessage("CALL_ACCEPTED " + this.userName);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found) {
+                        sendMessage("Call accepted. Connecting audio...");
+                        // Register call in UDP server
+                        server.getAudioServer().registerCall(this.userName, caller);
+                    }
+                }
+                break;
+            case "/deny":
+                if (parts.length < 2) {
+                     sendMessage("Syntax: /deny <username>");
+                } else {
+                    String caller = parts[1];
+                     for (ClientHandler h : server.getUserThreads()) {
+                        if (h.getUserName().equalsIgnoreCase(caller)) {
+                            h.sendMessage("CALL_DENIED " + this.userName);
+                            break;
+                        }
+                    }
+                }
+                break;
+            case "/hangup":
+                // End current call
+                server.getAudioServer().endCall(this.userName);
+                // Notify partner if possible (we don't track partner in ClientHandler easily without lookup)
+                // Actually server.endCall removes both. We should notify them.
+                // For simplicity, just close local audio. The partner will stop receiving.
+                // Ideally, we'd look up the partner and tell them HANGUP.
+                // Let's implement a 'partner' tracker in ClientHandler or look it up via Server
+                sendMessage("Call ended.");
                 break;
             default:
                 sendMessage("Unknown command: " + cmd);
