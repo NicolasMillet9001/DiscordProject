@@ -1,7 +1,13 @@
 package fr.unilasalle.chat.server;
 
+
 import java.io.*;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.util.Base64;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+
 
 public class ClientHandler extends Thread {
     private Socket socket;
@@ -17,9 +23,14 @@ public class ClientHandler extends Thread {
     private String channel = "general";
     private String status = "online";
     private String statusMessage = "";
+    private String avatar = null;
 
-    public String getStatus() {
-        return status;
+    public void setAvatar(String path) {
+        this.avatar = path;
+    }
+    
+    public String getAvatar() {
+        return avatar;
     }
 
     public void setStatus(String status) {
@@ -75,10 +86,14 @@ public class ClientHandler extends Thread {
                         // Check if already online
                         if (server.addUserName(parts[1])) {
                             this.userName = parts[1];
+                            this.avatar = server.getDbService().getAvatar(this.userName); // Load avatar
+                            
                             server.broadcastAllUsers(); // Update global list now that name is set
                             System.out.println("DEBUG: triggering friend status update for " + this.userName);
                             server.broadcastFriendStatusUpdate(this.userName);
-                            writer.println("LOGIN_SUCCESS " + this.userName);
+                            
+                            // Send login success with avatar info?
+                            writer.println("LOGIN_SUCCESS " + this.userName + " " + (this.avatar != null ? this.avatar : "null"));
                             writer.println("Welcome " + this.userName);
                             writer.println("You are in channel: " + channel);
 
@@ -313,17 +328,17 @@ public class ClientHandler extends Thread {
                     server.sendPrivateMessage(parts[1], parts[2], this);
                 }
                 break;
-            case "/privhistory":
-                if (parts.length < 2) {
-                    sendMessage("Syntax: /privhistory <user>");
-                } else {
-                    String target = parts[1];
-                    java.util.List<String> history = server.getDbService().getPrivateHistory(this.userName, target, 50);
-                    for (String msg : history) {
-                        sendMessage("PRIVMSG " + target + " " + msg);
-                    }
-                }
-                break;
+            // case "/privhistory":
+            //     if (parts.length < 2) {
+            //         sendMessage("Syntax: /privhistory <user>");
+            //     } else {
+            //         String target = parts[1];
+            //         java.util.List<String> history = server.getDbService().getPrivateHistory(this.userName, target, 50);
+            //         for (String msg : history) {
+            //             sendMessage("PRIVMSG " + target + " " + msg);
+            //         }
+            //     }
+            //     break;
             case "/status":
                 if (parts.length < 2) {
                     sendMessage("Syntax: /status <online|busy|away>");
@@ -356,6 +371,108 @@ public class ClientHandler extends Thread {
                 }
                 server.broadcastFriendStatusUpdate(this.userName);
                 server.broadcastUserList(this.channel);
+                break;
+            case "/upload":
+                if (parts.length < 3) {
+                    sendMessage("Syntax: /upload <filename> <base64_data>");
+                } else {
+                    String filename = parts[1];
+                    String b64 = parts[2];
+                    try {
+                        byte[] data = Base64.getDecoder().decode(b64);
+                        // Ensure transfer directory exists
+                        File transferDir = new File("transfer");
+                        if (!transferDir.exists()) transferDir.mkdir();
+                        
+                        // Create unique name
+                        String uniqueName = System.currentTimeMillis() + "_" + filename;
+                        Files.write(Paths.get("transfer", uniqueName), data, StandardOpenOption.CREATE);
+                        
+                        // Broadcast file link
+                        // Format: FILE <uniqueID> <originalName>
+                        String fileMsg = "FILE " + uniqueName + " " + filename;
+                        server.broadcastToChannel(channel, fileMsg, this);
+                        sendMessage("File uploaded successfully.");
+                    } catch (IllegalArgumentException e) {
+                         sendMessage("Error: Invalid Base64 data.");
+                    } catch (IOException e) {
+                         sendMessage("Error saving file: " + e.getMessage());
+                    }
+                }
+                break;
+            case "/download":
+                if (parts.length < 2) {
+                    sendMessage("Syntax: /download <file_id>");
+                } else {
+                    String fileId = parts[1];
+                    // Security check: simple path traversal prevention
+                    if (fileId.contains("..") || fileId.contains("/") || fileId.contains("\\")) {
+                        sendMessage("Error: Invalid filename.");
+                        return;
+                    }
+                    
+                    File f = new File("transfer", fileId);
+                    if (f.exists()) {
+                        try {
+                            byte[] data = Files.readAllBytes(f.toPath());
+                            String b64 = Base64.getEncoder().encodeToString(data);
+                            // Protocol: FILEDOWNLOAD <file_id> <base64>
+                            // We need to send original name too? client might not know it if they just requested ID.
+                            // But usually client clicked a link that had both ID and Name.
+                            // Let's send just content for now, client saves as fileId (or we change protocol).
+                            // Better: FILEDOWNLOAD <file_id> <base64>
+                            sendMessage("FILEDOWNLOAD " + fileId + " " + b64);
+                        } catch (IOException e) {
+                            sendMessage("Error reading file: " + e.getMessage());
+                        }
+                    } else {
+                        sendMessage("Error: File not found.");
+                    }
+                }
+                break;
+            case "/setavatar":
+                if (parts.length < 2) {
+                    sendMessage("Syntax: /setavatar <base64>");
+                } else {
+                    String b64 = parts[1];
+                    try {
+                         byte[] data = Base64.getDecoder().decode(b64);
+                         // Save to avatars/username.png
+                         String filename = this.userName + "_" + System.currentTimeMillis() + ".png";
+                         File avatarDir = new File("avatars");
+                         if (!avatarDir.exists()) avatarDir.mkdir();
+                         
+                         Files.write(Paths.get("avatars", filename), data, StandardOpenOption.CREATE);
+                         
+                         // Update DB
+                         server.getDbService().updateAvatar(this.userName, filename);
+                         this.avatar = filename;
+                         
+                         sendMessage("AVATAR_SET " + filename);
+                         // Broadcast update? Not strictly needed unless real-time updates for others
+                         // server.broadcastAvatarUpdate(this.userName, filename); 
+                    } catch (Exception e) {
+                        sendMessage("Error setting avatar: " + e.getMessage());
+                    }
+                }
+                break;
+            case "/getavatar":
+                if (parts.length < 2) {
+                    sendMessage("Syntax: /getavatar <username>");
+                } else {
+                    String target = parts[1];
+                    String av = server.getDbService().getAvatar(target);
+                    if (av != null) {
+                        File f = new File("avatars", av);
+                        if (f.exists()) {
+                            try {
+                                byte[] data = Files.readAllBytes(f.toPath());
+                                String b64 = Base64.getEncoder().encodeToString(data);
+                                sendMessage("AVATAR_DATA " + target + " " + b64);
+                            } catch (Exception e) {}
+                        }
+                    }
+                }
                 break;
             default:
                 sendMessage("Unknown command: " + cmd);

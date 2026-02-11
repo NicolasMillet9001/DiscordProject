@@ -72,7 +72,7 @@ public class LoginDialog extends JDialog {
         cs.gridwidth = 1;
         panel.add(ipLabel, cs);
 
-        ipField = new JTextField("172.21.200.32", 20);
+        ipField = new JTextField("172.21.200.235", 20);
         styleTextField(ipField);
         cs.gridx = 1;
         cs.gridy = 3;

@@ -36,7 +36,39 @@ public class DatabaseService {
         try (Connection conn = connect();
                 Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
+            
+            // Migration: Add avatar column if not exists
+            try {
+                stmt.execute("ALTER TABLE users ADD COLUMN avatar TEXT;");
+            } catch (SQLException e) {
+                // Ignore if exists
+            }
         }
+    }
+    
+    public void updateAvatar(String username, String avatarPath) {
+        String sql = "UPDATE users SET avatar = ? WHERE username = ?";
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, avatarPath);
+            pstmt.setString(2, username);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public String getAvatar(String username) {
+        String sql = "SELECT avatar FROM users WHERE username = ?";
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             pstmt.setString(1, username);
+             ResultSet rs = pstmt.executeQuery();
+             if (rs.next()) return rs.getString("avatar");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public synchronized boolean register(String username, String password) {

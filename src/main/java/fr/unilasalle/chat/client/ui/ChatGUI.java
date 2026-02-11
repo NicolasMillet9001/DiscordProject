@@ -22,6 +22,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
+import java.io.File;
+import java.nio.file.Files;
+import java.util.Base64;
+import javax.swing.event.HyperlinkListener;
+import javax.swing.event.HyperlinkEvent;
 
 public class ChatGUI extends JFrame implements MessageListener {
     private Client client;
@@ -47,6 +52,7 @@ public class ChatGUI extends JFrame implements MessageListener {
     private String password;
     private boolean registerMode;
     private HTMLEditorKit kit; // Helper for inserting HTML
+    private JLabel headerAvatar;
 
     private static class Friend {
         String name;
@@ -134,14 +140,40 @@ public class ChatGUI extends JFrame implements MessageListener {
         appTitle.setFont(new Font("Trebuchet MS", Font.BOLD, 18));
         appTitle.setForeground(Color.WHITE);
 
-        // Add Logo if exists
-        ImageIcon logoIcon = new ImageIcon("media/msn.png");
-        if (logoIcon.getImageLoadStatus() == MediaTracker.COMPLETE) {
-            Image img = logoIcon.getImage().getScaledInstance(30, 30, Image.SCALE_SMOOTH);
-            appTitle.setIcon(new ImageIcon(img));
-        }
-
-        header.add(appTitle, BorderLayout.WEST);
+        
+        JLabel avatarLabel = new JLabel();
+        avatarLabel.setPreferredSize(new Dimension(50, 50));
+        avatarLabel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        avatarLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        avatarLabel.setToolTipText("Cliquez pour changer votre photo");
+        avatarLabel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                JFileChooser chooser = new JFileChooser();
+                int r = chooser.showOpenDialog(ChatGUI.this);
+                if (r == JFileChooser.APPROVE_OPTION) {
+                    File f = chooser.getSelectedFile();
+                    try {
+                        byte[] data = Files.readAllBytes(f.toPath());
+                        String b64 = Base64.getEncoder().encodeToString(data);
+                        client.sendMessage("/setavatar " + b64);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        });
+        
+        // Expose avatarLabel to update it later
+        this.headerAvatar = avatarLabel;
+        header.add(avatarLabel, BorderLayout.CENTER); // Center or East?
+        // Layout tweak:
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        left.setOpaque(false);
+        left.add(avatarLabel);
+        left.add(appTitle);
+        
+        header.add(left, BorderLayout.WEST);
 
         JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         statusPanel.setOpaque(false);
@@ -487,6 +519,20 @@ public class ChatGUI extends JFrame implements MessageListener {
         // Force font style
         chatArea.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
         chatArea.setFont(MsnTheme.FONT_MAIN);
+        
+        // Add Hyperlink Listener for file downloads
+        chatArea.addHyperlinkListener(e -> {
+            if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
+                String desc = e.getDescription(); // e.g. "download:12345_file.png"
+                if (desc.startsWith("download:")) {
+                    String fileId = desc.substring("download:".length());
+                    int confirm = JOptionPane.showConfirmDialog(this, "Voulez-vous télécharger le fichier " + fileId + " ?", "Téléchargement", JOptionPane.YES_NO_OPTION);
+                    if (confirm == JOptionPane.YES_OPTION) {
+                        client.sendMessage("/download " + fileId);
+                    }
+                }
+            }
+        });
 
         chatArea.setDocument(channelDocs.get("general")); // Set initial doc
 
@@ -562,6 +608,35 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
         });
         toolbar.add(searchBtn);
+
+        JButton fileBtn = new JButton("F");
+        fileBtn.setFont(new Font("Arial", Font.BOLD, 12)); 
+        fileBtn.setToolTipText("Envoyer un fichier");
+        styleToolbarButton(fileBtn);
+        fileBtn.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            int res = chooser.showOpenDialog(this);
+            if (res == JFileChooser.APPROVE_OPTION) {
+                File f = chooser.getSelectedFile();
+                if (f.length() > 5 * 1024 * 1024) { // 5MB limit
+                    JOptionPane.showMessageDialog(this, "Fichier trop volumineux (max 5MB).");
+                    return;
+                }
+                try {
+                    byte[] data = Files.readAllBytes(f.toPath());
+                    String b64 = Base64.getEncoder().encodeToString(data);
+                    // Send: /upload <filename> <b64>
+                    // Remove spaces from filename to be safe
+                    String safeName = f.getName().replace(" ", "_");
+                    client.sendMessage("/upload " + safeName + " " + b64);
+                    appendToChat("Envoi du fichier " + safeName + "...", Color.GRAY);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    JOptionPane.showMessageDialog(this, "Erreur lors de la lecture du fichier.");
+                }
+            }
+        });
+        toolbar.add(fileBtn);
 
         inputPanel.add(toolbar, BorderLayout.NORTH);
 
@@ -1179,6 +1254,13 @@ public class ChatGUI extends JFrame implements MessageListener {
 
             if (message.startsWith("LOGIN_SUCCESS")) {
                 appendToChat("Système : Connexion réussie !", Color.GRAY);
+                // Check if avatar info is present
+                String[] parts = message.split(" ");
+                if (parts.length >= 3 && !parts[2].equals("null")) {
+                    // Request avatar data to display it
+                    // Or wait, server just sent the filename. Client doesn't have the file yet.
+                    client.sendMessage("/getavatar " + username);
+                }
                 return;
             }
 
@@ -1486,6 +1568,75 @@ public class ChatGUI extends JFrame implements MessageListener {
                 return;
             }
 
+            if (message.startsWith("AVATAR_SET ")) {
+                String filename = message.substring("AVATAR_SET ".length());
+                // We just set it, request data back to display? 
+                // Or just assume successful. To display, we need the image.
+                client.sendMessage("/getavatar " + username);
+                return;
+            }
+            
+            if (message.startsWith("AVATAR_DATA ")) {
+                 String[] parts = message.split(" ", 3);
+                 if (parts.length >= 3) {
+                     String user = parts[1];
+                     String b64 = parts[2];
+                     try {
+                         byte[] data = Base64.getDecoder().decode(b64);
+                         ImageIcon icon = new ImageIcon(data);
+                         Image img = icon.getImage().getScaledInstance(50, 50, Image.SCALE_SMOOTH);
+                         
+                         if (user.equals(username) && headerAvatar != null) {
+                             headerAvatar.setIcon(new ImageIcon(img));
+                         }
+                     } catch (Exception e) {}
+                 }
+                 return;
+            }
+
+            if (message.startsWith("FILE ")) {
+                // FILE <uniqueID> <originalName>
+                String[] parts = message.split(" ", 3);
+                if (parts.length >= 3) {
+                    String fileId = parts[1];
+                    String fileName = parts[2];
+                    
+                    String html = "<div style='background-color:#eef; border:1px solid #ccf; padding:5px; margin:5px;'>" +
+                                  "<b>Fichier partagé : </b>" + fileName + "<br>" +
+                                  "<a href='download:" + fileId + "'>Cliquez ici pour télécharger</a>" +
+                                  "</div>";
+                                  
+                    StyledDocument doc = chatArea.getStyledDocument(); // Assume current channel context for simplicity/broadcast
+                    try {
+                        kit.insertHTML((HTMLDocument)doc, doc.getLength(), html, 0, 0, null);
+                        scrollToBottom();
+                    } catch (Exception e) {}
+                }
+                return;
+            }
+            
+            if (message.startsWith("FILEDOWNLOAD ")) {
+                 String[] parts = message.split(" ", 3);
+                 if (parts.length >= 3) {
+                     String fileId = parts[1];
+                     String b64 = parts[2];
+                     
+                     JFileChooser saver = new JFileChooser();
+                     saver.setSelectedFile(new File(fileId)); // Suggest ID as name
+                     int res = saver.showSaveDialog(this);
+                     if (res == JFileChooser.APPROVE_OPTION) {
+                         try {
+                             byte[] data = Base64.getDecoder().decode(b64);
+                             Files.write(saver.getSelectedFile().toPath(), data);
+                             JOptionPane.showMessageDialog(this, "Fichier enregistré avec succès !");
+                         } catch (Exception e) {
+                             JOptionPane.showMessageDialog(this, "Erreur lors de l'enregistrement : " + e.getMessage());
+                         }
+                     }
+                 }
+                 return;
+            }
+
             // Fallback
             appendToChat(message, Color.BLACK);
         });
@@ -1573,21 +1724,26 @@ public class ChatGUI extends JFrame implements MessageListener {
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
                 boolean cellHasFocus) {
-            // For Headers
-            JLabel lbl = new JLabel((String) value);
+            
+            // Use super to set up basic properties (bg, fg, font, selection)
+            JLabel lbl = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+
+            // For Headers (String)
             if (value instanceof String) {
                 lbl.setOpaque(true);
                 lbl.setBackground(new Color(220, 230, 244)); // Light blue header
                 lbl.setForeground(new Color(40, 60, 100));
                 lbl.setFont(MsnTheme.FONT_BOLD);
                 lbl.setBorder(new EmptyBorder(2, 5, 2, 5));
+                lbl.setText((String) value);
                 return lbl;
             }
 
-            // For Friends
+            // For Friends (Friend object)
             if (value instanceof Friend) {
                 Friend f = (Friend) value;
-                // Indent
+                lbl.setBorder(new EmptyBorder(2, 20, 2, 5)); // Indent
+                
                 String displayStatus = "";
                 Color c2 = Color.GRAY;
                 
@@ -1605,8 +1761,12 @@ public class ChatGUI extends JFrame implements MessageListener {
                 if (!f.status.equals("offline")) {
                     lbl.setForeground(c2); 
                     String txt = "<html><b>" + f.name + "</b> " + displayStatus;
+                    // Sanitize potential HTML in status message or name? 
+                    // Assume name is safe-ish, but message might have chars.
+                    // For now, keep it simple but functional.
                     if (f.statusMessage != null && !f.statusMessage.isEmpty()) {
-                        txt += "<br><span style='color:gray;font-size:9px'> - " + f.statusMessage + "</span>";
+                        String safeMsg = f.statusMessage.replace("<", "&lt;").replace(">", "&gt;");
+                        txt += "<br><span style='color:gray;font-size:9px'> - " + safeMsg + "</span>";
                     }
                     txt += "</html>";
                     lbl.setText(txt);
@@ -1614,10 +1774,10 @@ public class ChatGUI extends JFrame implements MessageListener {
                     lbl.setForeground(Color.GRAY);
                     lbl.setText(f.name);
                 }
-
                 return lbl;
             }
-            return super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            
+            return lbl;
         }
     }
 }
