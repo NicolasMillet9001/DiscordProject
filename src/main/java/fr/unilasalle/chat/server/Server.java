@@ -13,14 +13,17 @@ public class Server {
     private DatabaseService dbService;
     private Set<String> knownChannels = ConcurrentHashMap.newKeySet();
     private fr.unilasalle.chat.audio.AudioServer audioServer;
+    private fr.unilasalle.chat.video.VideoServer videoServer;
 
     public Server(int port) {
         this.port = port;
         this.dbService = new DatabaseService();
         this.knownChannels.add("general");
         try {
-            this.audioServer = new fr.unilasalle.chat.audio.AudioServer(port + 1); // Start audio on TCP port + 1
+            this.audioServer = new fr.unilasalle.chat.audio.AudioServer(port + 1);
             this.audioServer.start();
+            this.videoServer = new fr.unilasalle.chat.video.VideoServer(port + 2);
+            this.videoServer.start();
         } catch (java.net.SocketException e) {
             e.printStackTrace();
         }
@@ -28,6 +31,10 @@ public class Server {
     
     public fr.unilasalle.chat.audio.AudioServer getAudioServer() {
         return audioServer;
+    }
+
+    public fr.unilasalle.chat.video.VideoServer getVideoServer() {
+        return videoServer;
     }
 
     public DatabaseService getDbService() {

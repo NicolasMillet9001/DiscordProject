@@ -57,6 +57,7 @@ public class ChatGUI extends JFrame implements MessageListener {
     private JLabel headerAvatar;
     private AudioClient audioClient;
     private boolean inCall = false;
+    private Map<String, Image> userAvatars = new HashMap<>();
 
     private static class Friend {
         String name;
@@ -1635,10 +1636,17 @@ public class ChatGUI extends JFrame implements MessageListener {
                      try {
                          byte[] data = Base64.getDecoder().decode(b64);
                          ImageIcon icon = new ImageIcon(data);
-                         Image img = icon.getImage().getScaledInstance(50, 50, Image.SCALE_SMOOTH);
+                         Image rawImg = icon.getImage();
+                         userAvatars.put(user, rawImg);
                          
                          if (user.equals(username) && headerAvatar != null) {
-                             headerAvatar.setIcon(new ImageIcon(img));
+                             Image scaled = rawImg.getScaledInstance(50, 50, Image.SCALE_SMOOTH);
+                             headerAvatar.setIcon(new ImageIcon(scaled));
+                         }
+                         
+                         // If we are in call with this user, update call window
+                         if (inCall && callWindow != null) {
+                              callWindow.setPartnerAvatar(rawImg);
                          }
                      } catch (Exception e) {}
                  }
@@ -1714,10 +1722,20 @@ public class ChatGUI extends JFrame implements MessageListener {
                 return;
             }
 
+            if (message.startsWith("HANGUP ")) {
+                String partner = message.substring("HANGUP ".length());
+                appendToChat("Appel terminé par " + partner, Color.RED);
+                endCall();
+                return;
+            }
+
             // Fallback
             appendToChat(message, Color.BLACK);
         });
     }
+
+    private fr.unilasalle.chat.video.VideoClient videoClient;
+    private CallWindow callWindow;
 
     private void startCall(String partner) {
         if (inCall) return;
@@ -1726,6 +1744,49 @@ public class ChatGUI extends JFrame implements MessageListener {
         
         audioClient = new AudioClient(serverHost, serverPort + 1, username);
         audioClient.startCall();
+        
+        // Open Call Window
+        SwingUtilities.invokeLater(() -> {
+            callWindow = new CallWindow(partner, 
+                e -> {
+                    // Hangup action
+                    client.sendMessage("/hangup");
+                    endCall();
+                },
+                e -> {
+                    // Screen Share action
+                    if (videoClient != null) {
+                        if (videoClient.isSendingScreen()) {
+                            videoClient.stopScreenShare();
+                            callWindow.clearVideo();
+                            appendToChat("Partage d'écran désactivé.", Color.BLUE);
+                        } else {
+                            videoClient.startScreenShare();
+                            appendToChat("Partage d'écran activé.", Color.BLUE);
+                        }
+                    }
+                },
+                e -> {
+                    // Camera action
+                    // TODO: Implement Camera
+                    JOptionPane.showMessageDialog(callWindow, "Aucune caméra détectée (Bibliothèque manquante).", "Erreur Caméra", JOptionPane.WARNING_MESSAGE);
+                }
+            );
+            
+            // Set Avatar if we have it
+            if (userAvatars.containsKey(partner)) {
+                callWindow.setPartnerAvatar(userAvatars.get(partner));
+            } else {
+                client.sendMessage("/getavatar " + partner);
+            }
+            
+            // Start Video Client (Port + 2)
+            videoClient = new fr.unilasalle.chat.video.VideoClient(serverHost, serverPort + 2, username, img -> {
+                if (callWindow != null) callWindow.updateVideo(img);
+            });
+            videoClient.start();
+        });
+        
         appendToChat("Appel vocal actif.", Color.BLUE);
     }
     
@@ -1733,6 +1794,14 @@ public class ChatGUI extends JFrame implements MessageListener {
         if (audioClient != null) {
             audioClient.stopCall();
             audioClient = null;
+        }
+        if (videoClient != null) {
+            videoClient.stop();
+            videoClient = null;
+        }
+        if (callWindow != null) {
+            callWindow.dispose();
+            callWindow = null;
         }
         inCall = false;
         appendToChat("Appel terminé.", Color.GRAY);

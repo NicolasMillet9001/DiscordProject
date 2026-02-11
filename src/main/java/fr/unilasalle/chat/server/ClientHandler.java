@@ -515,6 +515,7 @@ public class ClientHandler extends Thread {
                         sendMessage("Call accepted. Connecting audio...");
                         // Register call in UDP server
                         server.getAudioServer().registerCall(this.userName, caller);
+                        server.getVideoServer().registerCall(this.userName, caller);
                     }
                 }
                 break;
@@ -533,13 +534,21 @@ public class ClientHandler extends Thread {
                 break;
             case "/hangup":
                 // End current call
-                server.getAudioServer().endCall(this.userName);
-                // Notify partner if possible (we don't track partner in ClientHandler easily without lookup)
-                // Actually server.endCall removes both. We should notify them.
-                // For simplicity, just close local audio. The partner will stop receiving.
-                // Ideally, we'd look up the partner and tell them HANGUP.
-                // Let's implement a 'partner' tracker in ClientHandler or look it up via Server
+                String partner = server.getAudioServer().endCall(this.userName);
+                server.getVideoServer().endCall(this.userName);
+                
                 sendMessage("Call ended.");
+                
+                if (partner != null) {
+                    server.getVideoServer().endCall(partner); // Should be redundant if symmetric but cleans up
+                    // Notify partner
+                     for (ClientHandler h : server.getUserThreads()) {
+                        if (h.getUserName().equalsIgnoreCase(partner)) {
+                            h.sendMessage("HANGUP " + this.userName);
+                            break;
+                        }
+                    }
+                }
                 break;
             default:
                 sendMessage("Unknown command: " + cmd);

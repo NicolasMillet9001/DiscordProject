@@ -1,49 +1,44 @@
-package fr.unilasalle.chat.audio;
+package fr.unilasalle.chat.video;
 
 import java.net.*;
 import java.util.concurrent.*;
 import java.io.*;
 import java.util.*;
 
-public class AudioServer extends Thread {
+public class VideoServer extends Thread {
     private DatagramSocket socket;
     private int port;
     private ConcurrentHashMap<String, InetSocketAddress> userAddresses = new ConcurrentHashMap<>();
     private ConcurrentHashMap<InetSocketAddress, String> addressToUser = new ConcurrentHashMap<>();
     
-    // Maps a user to the user they are currently in a call with
+    // Use activeCalls from AudioServer or separate?
+    // Let's duplicate logic for simplicity as Video might be optional
     private ConcurrentHashMap<String, String> activeCalls = new ConcurrentHashMap<>();
 
-    public AudioServer(int port) throws SocketException {
+    public VideoServer(int port) throws SocketException {
         this.port = port;
         this.socket = new DatagramSocket(port);
-        System.out.println("Audio Server listening on UDP port " + port);
+        System.out.println("Video Server listening on UDP port " + port);
     }
 
-    // Called by Main Server (TCP) when a call is accepted
     public void registerCall(String user1, String user2) {
         activeCalls.put(user1, user2);
         activeCalls.put(user2, user1);
-        System.out.println("Audio: Registered call between " + user1 + " and " + user2);
+        System.out.println("Video: Registered call between " + user1 + " and " + user2);
     }
-
-    public String endCall(String user) {
+    
+    public void endCall(String user) {
         String partner = activeCalls.remove(user);
         if (partner != null) {
             activeCalls.remove(partner);
-            System.out.println("Audio: Ended call between " + user + " and " + partner);
-            return partner;
+            System.out.println("Video: Ended call between " + user + " and " + partner);
         }
-        return null; // No active call for this user
-    }
-
-    public String getPartner(String user) {
-        return activeCalls.get(user);
     }
 
     @Override
     public void run() {
-        byte[] buffer = new byte[4096];
+        // Video Packets are larger: 64KB max UDP packet size.
+        byte[] buffer = new byte[65535];
         
         while (!socket.isClosed()) {
             try {
@@ -52,33 +47,22 @@ public class AudioServer extends Thread {
                 
                 InetSocketAddress senderAddr = (InetSocketAddress) packet.getSocketAddress();
                 
-                // Packet Format:
-                // If starts with "LINK:", it's a registration packet: "LINK:username"
-                // Else it's audio data
-                
-                // Check if it's a control packet (first few bytes)
-                // We'll use a simple heuristic: if length < 100 and starts with "LINK:", it's control.
-                // Audio packets are usually 500-1000 bytes.
-                
                 if (packet.getLength() < 100) {
                     String msg = new String(packet.getData(), 0, packet.getLength());
                     if (msg.startsWith("LINK:")) {
                         String username = msg.substring(5).trim();
                         userAddresses.put(username, senderAddr);
                         addressToUser.put(senderAddr, username);
-                        // System.out.println("Audio: Linked " + username + " to " + senderAddr);
                         continue;
                     }
                 }
                 
-                // It's an audio packet
                 String sender = addressToUser.get(senderAddr);
                 if (sender != null) {
                     String recipient = activeCalls.get(sender);
                     if (recipient != null) {
                         InetSocketAddress recipientAddr = userAddresses.get(recipient);
                         if (recipientAddr != null) {
-                            // Forward packet
                             DatagramPacket forward = new DatagramPacket(
                                 packet.getData(), 
                                 packet.getLength(), 
