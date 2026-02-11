@@ -34,6 +34,8 @@ public class ChatGUI extends JFrame implements MessageListener {
     private JList<Object> friendsList;
     private JList<String> userList;
     private Set<String> channelUsers = new HashSet<>();
+    private Map<String, String> channelUserStatus = new HashMap<>();
+    private Map<String, String> channelUserMsg = new HashMap<>();
 
     private boolean isPrivateMode = false; // true if chatting with a friend
 
@@ -48,11 +50,13 @@ public class ChatGUI extends JFrame implements MessageListener {
 
     private static class Friend {
         String name;
-        boolean isOnline;
+        String status; // online, busy, away, offline
+        String statusMessage;
 
-        Friend(String name, boolean isOnline) {
+        Friend(String name, String status, String msg) {
             this.name = name;
-            this.isOnline = isOnline;
+            this.status = status;
+            this.statusMessage = msg;
         }
     }
 
@@ -139,11 +143,39 @@ public class ChatGUI extends JFrame implements MessageListener {
 
         header.add(appTitle, BorderLayout.WEST);
 
-        JLabel userStatus = new JLabel("<html>Connecté(e) en tant que <b>" + username + "</b><br>(En ligne)</html>");
+        JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        statusPanel.setOpaque(false);
+
+        JLabel userStatus = new JLabel("<html>Connecté(e) en tant que <b>" + username + "</b></html>");
         userStatus.setFont(MsnTheme.FONT_MAIN);
         userStatus.setForeground(Color.WHITE);
-        userStatus.setHorizontalAlignment(SwingConstants.RIGHT);
-        header.add(userStatus, BorderLayout.EAST);
+        
+        JComboBox<String> statusCombo = new JComboBox<>(new String[]{"En ligne", "Occupé", "Absent", "Invisible"});
+        statusCombo.setFont(new Font("Tahoma", Font.PLAIN, 11));
+        statusCombo.addActionListener(e -> {
+            String s = (String) statusCombo.getSelectedItem();
+            String code = "online";
+            if ("Occupé".equals(s)) code = "busy";
+            else if ("Absent".equals(s)) code = "away";
+            else if ("Invisible".equals(s)) code = "offline"; // functionally offline for others
+            
+            client.sendMessage("/status " + code);
+        });
+
+        JButton msgBtn = new JButton("...");
+        msgBtn.setToolTipText("Modifier votre message perso");
+        msgBtn.setPreferredSize(new Dimension(25, 20));
+        msgBtn.setFont(new Font("Tahoma", Font.PLAIN, 10));
+        msgBtn.addActionListener(e -> {
+            String m = JOptionPane.showInputDialog(this, "Message personnel :", "");
+            if (m != null) client.sendMessage("/setmsg " + m);
+        });
+
+        statusPanel.add(userStatus);
+        statusPanel.add(statusCombo);
+        statusPanel.add(msgBtn);
+
+        header.add(statusPanel, BorderLayout.EAST);
 
         add(header, BorderLayout.NORTH);
     }
@@ -502,6 +534,19 @@ public class ChatGUI extends JFrame implements MessageListener {
         toolbar.add(colorBtn);
         toolbar.add(bgBtn);
         toolbar.add(resetBtn);
+        
+        JButton searchBtn = new JButton("?");
+        searchBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        searchBtn.setToolTipText("Rechercher dans les messages");
+        styleToolbarButton(searchBtn);
+        searchBtn.addActionListener(e -> {
+            String q = JOptionPane.showInputDialog(this, "Rechercher :", "Recherche", JOptionPane.QUESTION_MESSAGE);
+            if (q != null && !q.trim().isEmpty()) {
+                client.sendMessage("/search " + q);
+            }
+        });
+        toolbar.add(searchBtn);
+
         inputPanel.add(toolbar, BorderLayout.NORTH);
 
         inputField = new JTextField();
@@ -603,11 +648,24 @@ public class ChatGUI extends JFrame implements MessageListener {
             if (value instanceof String) {
                 String user = (String) value;
                 if (channelUsers.contains(user)) {
-                    setForeground(new Color(0, 180, 0)); // Green for same channel
+                    String st = channelUserStatus.getOrDefault(user, "online");
+                    Color c2 = Color.BLACK;
+                    String suffix = "";
+                    
+                    if (st.equals("online")) { c2 = new Color(0, 128, 0); }
+                    else if (st.equals("busy")) { c2 = Color.RED; suffix = " (Occupé)"; }
+                    else if (st.equals("away")) { c2 = Color.ORANGE; suffix = " (Absent)"; }
+                    
+                    String msg = channelUserMsg.getOrDefault(user, "");
+                    if (!msg.isEmpty()) setToolTipText(msg); else setToolTipText(null);
+                    
+                    setForeground(c2); 
                     setFont(MsnTheme.FONT_BOLD);
+                    setText(user + suffix);
                 } else {
                     setForeground(MsnTheme.TEXT_NORMAL);
                     setFont(MsnTheme.FONT_MAIN);
+                    setToolTipText(null);
                 }
             }
             return c;
@@ -1228,9 +1286,18 @@ public class ChatGUI extends JFrame implements MessageListener {
                 // Standard Channel List
                 String users = message.substring(("USERLIST " + currentChannel + " ").length());
                 channelUsers.clear();
+                channelUserStatus.clear();
+                channelUserMsg.clear();
                 for (String u : users.split(",")) {
-                    if (!u.isEmpty())
-                        channelUsers.add(u);
+                    if (!u.isEmpty()) {
+                        String[] parts = u.split(":");
+                        String name = parts[0];
+                        String st = parts.length > 1 ? parts[1] : "online";
+                        String m = parts.length > 2 ? parts[2] : "";
+                        channelUsers.add(name);
+                        channelUserStatus.put(name, st);
+                        channelUserMsg.put(name, m);
+                    }
                 }
                 userList.repaint();
                 return;
@@ -1358,6 +1425,49 @@ public class ChatGUI extends JFrame implements MessageListener {
                 return;
             }
 
+            if (message.startsWith("SEARCH_START ")) {
+                // Switch to search view
+                String query = message.substring("SEARCH_START ".length());
+                String searchChan = "!Recherche";
+                
+                if (!channelDocs.containsKey(searchChan)) {
+                     channelDocs.put(searchChan, (HTMLDocument) kit.createDefaultDocument());
+                }
+                // Clear previous search? HTMLDocument doesn't have clear(). 
+                channelDocs.put(searchChan, (HTMLDocument) kit.createDefaultDocument());
+                
+                currentChannel = searchChan;
+                chatArea.setDocument(channelDocs.get(searchChan));
+                
+                appendToChat("<b>Résultats de la recherche pour : " + query + "</b><br><hr>", Color.BLUE);
+                return;
+            }
+            
+            if (message.startsWith("SEARCH_RESULT ")) {
+                 String data = message.substring("SEARCH_RESULT ".length());
+                 // Format: CHANNEL:channel:user:ts:content OR PRIVATE:other:sender:ts:content
+                 String[] parts = data.split(":", 5);
+                 if (parts.length >= 5) {
+                     String type = parts[0];
+                     String location = parts[1];
+                     String user = parts[2];
+                     String ts = parts[3];
+                     // ts is YYYY-MM-DD HH:MM:SS from sqlite datetime(..., localtime)
+                     // Parse it to make it nicer?
+                     String content = parts[4];
+                     
+                     String displayRaw = "[" + ts + "] [" + location + "] <b>" + user + "</b>: " + content;
+                     appendToChat(displayRaw, Color.DARK_GRAY);
+                 }
+                 return;
+            }
+            
+            if (message.equals("SEARCH_END")) {
+                appendToChat("<hr><i>Fin de la recherche.</i>", Color.GRAY);
+                scrollToBottom();
+                return;
+            }
+
             // Fallback
             appendToChat(message, Color.BLACK);
         });
@@ -1406,11 +1516,13 @@ public class ChatGUI extends JFrame implements MessageListener {
             for (String part : diff.split(",")) {
                 String[] data = part.split(":");
                 String name = data[0];
-                boolean isOnline = data.length > 1 && data[1].equals("online");
-                if (isOnline)
-                    online.add(new Friend(name, true));
+                String status = data.length > 1 ? data[1] : "offline";
+                String msg = data.length > 2 ? data[2] : "";
+                
+                if (!status.equals("offline"))
+                    online.add(new Friend(name, status, msg));
                 else
-                    offline.add(new Friend(name, false));
+                    offline.add(new Friend(name, "offline", msg));
             }
         }
 
@@ -1435,8 +1547,8 @@ public class ChatGUI extends JFrame implements MessageListener {
         public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
                 boolean cellHasFocus) {
             // For Headers
+            JLabel lbl = new JLabel((String) value);
             if (value instanceof String) {
-                JLabel lbl = new JLabel((String) value);
                 lbl.setOpaque(true);
                 lbl.setBackground(new Color(220, 230, 244)); // Light blue header
                 lbl.setForeground(new Color(40, 60, 100));
@@ -1448,11 +1560,29 @@ public class ChatGUI extends JFrame implements MessageListener {
             // For Friends
             if (value instanceof Friend) {
                 Friend f = (Friend) value;
-                JLabel lbl = (JLabel) super.getListCellRendererComponent(list, f.name, index, isSelected, cellHasFocus);
-                lbl.setBorder(new EmptyBorder(2, 20, 2, 5)); // Indent
-                if (f.isOnline) {
-                    lbl.setForeground(new Color(0, 128, 0)); // Green
-                    lbl.setText("<html><b>" + f.name + "</b> (En ligne)</html>");
+                // Indent
+                String displayStatus = "";
+                Color c2 = Color.GRAY;
+                
+                if (f.status.equals("online")) {
+                    displayStatus = "(En ligne)";
+                    c2 = new Color(0, 128, 0);
+                } else if (f.status.equals("busy")) {
+                    displayStatus = "(Occupé)";
+                    c2 = new Color(200, 0, 0); // Red
+                } else if (f.status.equals("away")) {
+                    displayStatus = "(Absent)";
+                    c2 = new Color(220, 150, 0); // Orange
+                }
+                
+                if (!f.status.equals("offline")) {
+                    lbl.setForeground(c2); 
+                    String txt = "<html><b>" + f.name + "</b> " + displayStatus;
+                    if (f.statusMessage != null && !f.statusMessage.isEmpty()) {
+                        txt += "<br><span style='color:gray;font-size:9px'> - " + f.statusMessage + "</span>";
+                    }
+                    txt += "</html>";
+                    lbl.setText(txt);
                 } else {
                     lbl.setForeground(Color.GRAY);
                     lbl.setText(f.name);

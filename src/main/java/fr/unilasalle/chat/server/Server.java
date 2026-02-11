@@ -157,24 +157,25 @@ public class Server {
             return "";
         }
         StringBuilder sb = new StringBuilder();
-        Set<String> onlineUsersLower = new HashSet<>();
-        Set<String> rawOnlineUsers = new HashSet<>();
-        for (String u : getUserNames()) {
-            onlineUsersLower.add(u.toLowerCase());
-            rawOnlineUsers.add(u);
+        
+        // Map user to status and message
+        java.util.Map<String, String> onlineStatus = new java.util.HashMap<>();
+        java.util.Map<String, String> onlineMsg = new java.util.HashMap<>();
+        
+        for (ClientHandler h : userThreads) {
+            if (h.getUserName() != null) {
+                onlineStatus.put(h.getUserName().toLowerCase(), h.getStatus());
+                onlineMsg.put(h.getUserName().toLowerCase(), h.getStatusMessage());
+            }
         }
-
-        System.out.println("DEBUG: getFormattedFriendList for " + username);
-        System.out.println("DEBUG: Friends: " + friends);
-        System.out.println("DEBUG: Online Users (Raw): " + rawOnlineUsers);
-        System.out.println("DEBUG: Online Users (Lower): " + onlineUsersLower);
 
         for (String friend : friends) {
             if (sb.length() > 0)
                 sb.append(",");
-            String status = onlineUsersLower.contains(friend.toLowerCase()) ? "online" : "offline";
-            System.out.println("DEBUG: Friend " + friend + " -> " + status);
-            sb.append(friend).append(":").append(status);
+            
+            String s = onlineStatus.getOrDefault(friend.toLowerCase(), "offline");
+            String m = onlineMsg.getOrDefault(friend.toLowerCase(), "");
+            sb.append(friend).append(":").append(s).append(":").append(m);
         }
         return sb.toString();
     }
@@ -205,10 +206,15 @@ public class Server {
         StringBuilder sb = new StringBuilder();
         for (ClientHandler user : userThreads) {
             if (user.getChannel().equalsIgnoreCase(channel)) {
-                sb.append(user.getUserName()).append(",");
+                if (sb.length() > 0) sb.append(",");
+                sb.append(user.getUserName())
+                  .append(":")
+                  .append(user.getStatus())
+                  .append(":")
+                  .append(user.getStatusMessage());
             }
         }
-        return sb.toString(); // No trailing comma logic needed if empty?
+        return sb.toString(); 
         // Actually the original code had manual loop. String.join is easier if we
         // collected first.
         // But let's stick to minimal diff or just fix the trailing comma if present.

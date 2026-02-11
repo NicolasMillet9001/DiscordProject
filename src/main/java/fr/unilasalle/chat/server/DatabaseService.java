@@ -346,4 +346,35 @@ public class DatabaseService {
         java.util.Collections.reverse(history);
         return history;
     }
+    public java.util.List<String> searchMessages(String query, String username) {
+        java.util.List<String> results = new java.util.ArrayList<>();
+        String sqlPublic = "SELECT channel, username, content, datetime(timestamp, 'localtime') as ts FROM messages WHERE content LIKE ?";
+        String sqlPrivate = "SELECT sender, receiver, content, datetime(timestamp, 'localtime') as ts FROM private_messages WHERE (sender = ? OR receiver = ?) AND content LIKE ?";
+        
+        try (Connection conn = connect()) {
+            // Public
+            try (PreparedStatement pstmt = conn.prepareStatement(sqlPublic)) {
+                pstmt.setString(1, "%" + query + "%");
+                ResultSet rs = pstmt.executeQuery();
+                while (rs.next()) {
+                    results.add("CHANNEL:" + rs.getString("channel") + ":" + rs.getString("username") + ":" + rs.getString("ts") + ":" + rs.getString("content"));
+                }
+            }
+            
+            // Private
+            try (PreparedStatement pstmt = conn.prepareStatement(sqlPrivate)) {
+                pstmt.setString(1, username);
+                pstmt.setString(2, username);
+                pstmt.setString(3, "%" + query + "%");
+                ResultSet rs = pstmt.executeQuery();
+                while (rs.next()) {
+                    String other = rs.getString("sender").equals(username) ? rs.getString("receiver") : rs.getString("sender");
+                    results.add("PRIVATE:" + other + ":" + rs.getString("sender") + ":" + rs.getString("ts") + ":" + rs.getString("content"));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return results;
+    }
 }

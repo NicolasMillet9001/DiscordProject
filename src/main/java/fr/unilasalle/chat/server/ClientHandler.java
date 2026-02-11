@@ -15,6 +15,24 @@ public class ClientHandler extends Thread {
     }
 
     private String channel = "general";
+    private String status = "online";
+    private String statusMessage = "";
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getStatusMessage() {
+        return statusMessage;
+    }
+
+    public void setStatusMessage(String msg) {
+        this.statusMessage = msg;
+    }
 
     public String getChannel() {
         return channel;
@@ -245,6 +263,35 @@ public class ClientHandler extends Thread {
                         server.sendFriendListUpdate(this.userName);
                     }
                 }
+            case "/privhistory":
+                if (parts.length < 2) {
+                    sendMessage("Syntax: /privhistory <user>");
+                } else {
+                    String target = parts[1];
+                    java.util.List<String> history = server.getDbService().getPrivateHistory(this.userName, target, 50);
+                    for (String msg : history) {
+                        sendMessage("PRIVMSG " + target + " " + msg);
+                    }
+                }
+                break;
+            case "/search":
+                if (parts.length < 2) {
+                    sendMessage("Syntax: /search <query>");
+                } else {
+                    String query = parts[1];
+                    // parts is split by " ", 3. If query has spaces, it might be in parts[2] too?
+                    // Actually handleCommand uses split(" ", 3).
+                    // /search query words
+                    // parts[0]=/search, parts[1]=query, parts[2]=words
+                    if (parts.length > 2) query += " " + parts[2];
+                    
+                    sendMessage("SEARCH_START " + query);
+                    java.util.List<String> results = server.getDbService().searchMessages(query, this.userName);
+                    for (String r : results) {
+                        sendMessage("SEARCH_RESULT " + r);
+                    }
+                    sendMessage("SEARCH_END");
+                }
                 break;
             case "/privmsg":
                 if (parts.length < 3) {
@@ -263,6 +310,39 @@ public class ClientHandler extends Thread {
                         sendMessage("PRIVMSG " + target + " " + msg);
                     }
                 }
+                break;
+            case "/status":
+                if (parts.length < 2) {
+                    sendMessage("Syntax: /status <online|busy|away>");
+                } else {
+                    this.status = parts[1].toLowerCase();
+                    sendMessage("Status set to " + this.status);
+                    server.broadcastFriendStatusUpdate(this.userName);
+                    server.broadcastUserList(this.channel);
+                }
+                break;
+            case "/setmsg":
+                if (parts.length < 2) {
+                    this.statusMessage = "";
+                } else {
+                    // Sanitize: remove colons and commas to preserve protocol integrity
+                    String msg = parts.length == 3 ? parts[1] + " " + parts[2] : parts[1]; // handle partial split?
+                    // Actually parts is split by " ", 3. So parts[1] + parts[2] covers it roughly but logic in handleCommand is specific.
+                    // Let's rely on full command string or reconstruction.
+                    // handleCommand splits by " ", 3.
+                    // if I type /setmsg Hello World
+                    // parts[0]=/setmsg, parts[1]=Hello, parts[2]=World
+                    // if I type /setmsg Hello
+                    // parts[0]=/setmsg, parts[1]=Hello
+                    
+                    String raw = "";
+                    if (parts.length >= 2) raw += parts[1];
+                    if (parts.length >= 3) raw += " " + parts[2];
+                    
+                    this.statusMessage = raw.replace(",", " ").replace(":", " ");
+                }
+                server.broadcastFriendStatusUpdate(this.userName);
+                server.broadcastUserList(this.channel);
                 break;
             default:
                 sendMessage("Unknown command: " + cmd);
