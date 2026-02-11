@@ -454,8 +454,7 @@ public class ClientHandler extends Thread {
                          this.avatar = filename;
                          
                          sendMessage("AVATAR_SET " + filename);
-                         // Broadcast update? Not strictly needed unless real-time updates for others
-                         // server.broadcastAvatarUpdate(this.userName, filename); 
+                         server.broadcastAvatarUpdate(this.userName); 
                     } catch (Exception e) {
                         sendMessage("Error setting avatar: " + e.getMessage());
                     }

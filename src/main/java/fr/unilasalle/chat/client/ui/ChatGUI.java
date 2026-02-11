@@ -58,6 +58,12 @@ public class ChatGUI extends JFrame implements MessageListener {
     private AudioClient audioClient;
     private boolean inCall = false;
     private Map<String, Image> userAvatars = new HashMap<>();
+    private JLabel partnerAvatarLabel;
+    private JLabel talkingTo;
+    
+    private Image ownAvatarImage;
+    private String ownStatusMessage = "";
+    private Set<String> requestedAvatars = new HashSet<>();
 
     private static class Friend {
         String name;
@@ -158,18 +164,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         avatarLabel.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                JFileChooser chooser = new JFileChooser();
-                int r = chooser.showOpenDialog(ChatGUI.this);
-                if (r == JFileChooser.APPROVE_OPTION) {
-                    File f = chooser.getSelectedFile();
-                    try {
-                        byte[] data = Files.readAllBytes(f.toPath());
-                        String b64 = Base64.getEncoder().encodeToString(data);
-                        client.sendMessage("/setavatar " + b64);
-                    } catch (Exception ex) {
-                        ex.printStackTrace();
-                    }
-                }
+                new ProfileDialog(ChatGUI.this, username, client, ownAvatarImage, ownStatusMessage).setVisible(true);
             }
         });
         
@@ -209,7 +204,10 @@ public class ChatGUI extends JFrame implements MessageListener {
         msgBtn.setFont(new Font("Tahoma", Font.PLAIN, 10));
         msgBtn.addActionListener(e -> {
             String m = JOptionPane.showInputDialog(this, "Message personnel :", "");
-            if (m != null) client.sendMessage("/setmsg " + m);
+            if (m != null) {
+                client.sendMessage("/setmsg " + m);
+                ownStatusMessage = m;
+            }
         });
 
         statusPanel.add(userStatus);
@@ -386,6 +384,10 @@ public class ChatGUI extends JFrame implements MessageListener {
                                 msgItem.addActionListener(ev -> switchPrivateChat(f.name));
                                 menu.add(msgItem);
 
+                                JMenuItem callItem = new JMenuItem("Appeler");
+                                callItem.addActionListener(ev -> startCall(f.name));
+                                menu.add(callItem);
+
                                 // Optional: Remove friend
                                 // JMenuItem removeItem = new JMenuItem("Supprimer");
                                 // menu.add(removeItem);
@@ -415,9 +417,10 @@ public class ChatGUI extends JFrame implements MessageListener {
         isPrivateMode = false;
         client.sendMessage("/join " + newChannel);
         currentChannel = newChannel;
-        client.sendMessage("/join " + newChannel);
-        currentChannel = newChannel;
         friendsList.clearSelection(); // Deselect friend
+
+        talkingTo.setText("Discussion dans " + newChannel);
+        partnerAvatarLabel.setVisible(false);
 
         // Clear channel users locally while waiting for server update
         channelUsers.clear();
@@ -444,6 +447,16 @@ public class ChatGUI extends JFrame implements MessageListener {
     private void switchPrivateChat(String friendName) {
         currentChannel = friendName; // Effectively treating username as channel ID
         isPrivateMode = true;
+
+        talkingTo.setText("Discussion privée avec " + friendName);
+        partnerAvatarLabel.setVisible(true);
+        if (userAvatars.containsKey(friendName)) {
+            Image img = userAvatars.get(friendName).getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+            partnerAvatarLabel.setIcon(new ImageIcon(img));
+        } else {
+            partnerAvatarLabel.setIcon(null);
+            client.sendMessage("/getavatar " + friendName);
+        }
 
         // Join the hidden presence room
         String roomName = getPrivateRoomName(username, friendName);
@@ -511,13 +524,25 @@ public class ChatGUI extends JFrame implements MessageListener {
         chatPanel.setBorder(new EmptyBorder(0, 5, 0, 0)); // Gap from sidebar
 
         // Chat Header
-        JPanel chatHeader = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel chatHeader = new JPanel(new BorderLayout());
         chatHeader.setBackground(Color.WHITE);
         chatHeader.setBorder(new MatteBorder(0, 0, 1, 0, MsnTheme.BORDER_COLOR));
-        JLabel talkingTo = new JLabel("Discussion dans " + currentChannel);
+        
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        titlePanel.setOpaque(false);
+        
+        partnerAvatarLabel = new JLabel();
+        partnerAvatarLabel.setPreferredSize(new Dimension(80, 80));
+        partnerAvatarLabel.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+        partnerAvatarLabel.setVisible(false);
+        titlePanel.add(partnerAvatarLabel);
+
+        talkingTo = new JLabel("Discussion dans " + currentChannel);
         talkingTo.setFont(MsnTheme.FONT_TITLE);
         talkingTo.setForeground(MsnTheme.TEXT_NORMAL);
-        chatHeader.add(talkingTo);
+        titlePanel.add(talkingTo);
+        
+        chatHeader.add(titlePanel, BorderLayout.WEST);
         chatPanel.add(chatHeader, BorderLayout.NORTH);
 
         chatArea = new JTextPane();
@@ -787,9 +812,22 @@ public class ChatGUI extends JFrame implements MessageListener {
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
                 boolean cellHasFocus) {
-            Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
             if (value instanceof String) {
                 String user = (String) value;
+                
+                // Avatar icon
+                if (userAvatars.containsKey(user)) {
+                    Image img = userAvatars.get(user).getScaledInstance(20, 20, Image.SCALE_SMOOTH);
+                    label.setIcon(new ImageIcon(img));
+                } else {
+                    label.setIcon(null);
+                    if (!requestedAvatars.contains(user)) {
+                        requestedAvatars.add(user);
+                        client.sendMessage("/getavatar " + user);
+                    }
+                }
+
                 if (channelUsers.contains(user)) {
                     String st = channelUserStatus.getOrDefault(user, "online");
                     Color c2 = Color.BLACK;
@@ -800,18 +838,18 @@ public class ChatGUI extends JFrame implements MessageListener {
                     else if (st.equals("away")) { c2 = Color.ORANGE; suffix = " (Absent)"; }
                     
                     String msg = channelUserMsg.getOrDefault(user, "");
-                    if (!msg.isEmpty()) setToolTipText(msg); else setToolTipText(null);
+                    if (!msg.isEmpty()) label.setToolTipText(msg); else label.setToolTipText(null);
                     
-                    setForeground(c2); 
-                    setFont(MsnTheme.FONT_BOLD);
-                    setText(user + suffix);
+                    label.setForeground(c2); 
+                    label.setFont(MsnTheme.FONT_BOLD);
+                    label.setText(user + suffix);
                 } else {
-                    setForeground(MsnTheme.TEXT_NORMAL);
-                    setFont(MsnTheme.FONT_MAIN);
-                    setToolTipText(null);
+                    label.setForeground(MsnTheme.TEXT_NORMAL);
+                    label.setFont(MsnTheme.FONT_MAIN);
+                    label.setToolTipText(null);
                 }
             }
-            return c;
+            return label;
         }
     }
 
@@ -830,6 +868,10 @@ public class ChatGUI extends JFrame implements MessageListener {
                             JMenuItem msgItem = new JMenuItem("Envoyer un message");
                             msgItem.addActionListener(ev -> switchPrivateChat(selected));
                             menu.add(msgItem);
+
+                            JMenuItem callItem = new JMenuItem("Appeler");
+                            callItem.addActionListener(ev -> startCall(selected));
+                            menu.add(callItem);
 
                             JMenuItem addItem = new JMenuItem("Ajouter en ami");
                             addItem.addActionListener(ev -> {
@@ -1639,18 +1681,39 @@ public class ChatGUI extends JFrame implements MessageListener {
                          Image rawImg = icon.getImage();
                          userAvatars.put(user, rawImg);
                          
-                         if (user.equals(username) && headerAvatar != null) {
-                             Image scaled = rawImg.getScaledInstance(50, 50, Image.SCALE_SMOOTH);
-                             headerAvatar.setIcon(new ImageIcon(scaled));
+                         if (user.equals(username)) {
+                             ownAvatarImage = rawImg;
+                             if (headerAvatar != null) {
+                                Image scaled = rawImg.getScaledInstance(50, 50, Image.SCALE_SMOOTH);
+                                headerAvatar.setIcon(new ImageIcon(scaled));
+                             }
                          }
                          
                          // If we are in call with this user, update call window
                          if (inCall && callWindow != null) {
                               callWindow.setPartnerAvatar(rawImg);
                          }
+                         
+                         // If this is the current private chat partner, update large avatar
+                         if (isPrivateMode && user.equals(currentChannel) && partnerAvatarLabel != null) {
+                             Image scaled = rawImg.getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+                             partnerAvatarLabel.setIcon(new ImageIcon(scaled));
+                         }
+
+                         // Trigger repaint of lists
+                         if (userList != null) userList.repaint();
+                         if (friendsList != null) friendsList.repaint();
                      } catch (Exception e) {}
-                 }
-                 return;
+                }
+                return;
+            }
+
+            if (message.startsWith("AVATAR_UPDATE ")) {
+                String user = message.substring("AVATAR_UPDATE ".length());
+                requestedAvatars.remove(user);
+                userAvatars.remove(user); // Force reload
+                client.sendMessage("/getavatar " + user);
+                return;
             }
 
             if (message.startsWith("FILE ")) {
@@ -1907,8 +1970,20 @@ public class ChatGUI extends JFrame implements MessageListener {
             // For Friends (Friend object)
             if (value instanceof Friend) {
                 Friend f = (Friend) value;
-                lbl.setBorder(new EmptyBorder(2, 20, 2, 5)); // Indent
+                lbl.setBorder(new EmptyBorder(2, 5, 2, 5)); // Reduced indent as we use icon
                 
+                // Avatar icon
+                if (userAvatars.containsKey(f.name)) {
+                    Image img = userAvatars.get(f.name).getScaledInstance(20, 20, Image.SCALE_SMOOTH);
+                    lbl.setIcon(new ImageIcon(img));
+                } else {
+                    lbl.setIcon(null);
+                    if (!requestedAvatars.contains(f.name)) {
+                        requestedAvatars.add(f.name);
+                        client.sendMessage("/getavatar " + f.name);
+                    }
+                }
+
                 String displayStatus = "";
                 Color c2 = Color.GRAY;
                 

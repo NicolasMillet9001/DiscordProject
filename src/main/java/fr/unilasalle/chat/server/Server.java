@@ -159,6 +159,12 @@ public class Server {
         }
     }
 
+    void broadcastAvatarUpdate(String userName) {
+        for (ClientHandler user : userThreads) {
+            user.sendMessage("AVATAR_UPDATE " + userName);
+        }
+    }
+
     void sendFriendListUpdate(String username) {
         for (ClientHandler user : userThreads) {
             if (user.getUserName().equalsIgnoreCase(username)) {
