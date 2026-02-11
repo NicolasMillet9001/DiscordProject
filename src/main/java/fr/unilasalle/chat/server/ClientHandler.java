@@ -259,6 +259,19 @@ public class ClientHandler extends Thread {
                                 sendMessage("Could not accept request (no pending request found).");
                             }
                         }
+                    } else if (subCmd.startsWith("deny")) {
+                        if (parts.length < 3) {
+                            sendMessage("Syntax: /friend deny <username>");
+                        } else {
+                            String target = parts[2];
+                            if (server.getDbService().rejectRequest(this.userName, target)) {
+                                sendMessage("You denied friend request from " + target);
+                                // Optional: notify target they were denied? Usually silent or "Request denied"
+                                // server.sendFriendDenyNotification(target, this.userName);
+                            } else {
+                                sendMessage("Could not deny request (no pending request found).");
+                            }
+                        }
                     } else if (subCmd.startsWith("list")) {
                         server.sendFriendListUpdate(this.userName);
                     }

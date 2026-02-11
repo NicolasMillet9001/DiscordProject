@@ -329,11 +329,26 @@ public class ChatGUI extends JFrame implements MessageListener {
                     if (row != -1) {
                         Object val = friendsListModel.getElementAt(row);
                         if (val instanceof Friend) {
-                            String selected = ((Friend) val).name;
+                            Friend f = (Friend) val;
                             JPopupMenu menu = new JPopupMenu();
-                            JMenuItem msgItem = new JMenuItem("Envoyer un message");
-                            msgItem.addActionListener(ev -> switchPrivateChat(selected));
-                            menu.add(msgItem);
+
+                            if ("pending".equals(f.status)) {
+                                JMenuItem acceptItem = new JMenuItem("Accepter");
+                                acceptItem.addActionListener(ev -> client.sendMessage("/friend accept " + f.name));
+                                menu.add(acceptItem);
+
+                                JMenuItem denyItem = new JMenuItem("Refuser");
+                                denyItem.addActionListener(ev -> client.sendMessage("/friend deny " + f.name));
+                                menu.add(denyItem);
+                            } else {
+                                JMenuItem msgItem = new JMenuItem("Envoyer un message");
+                                msgItem.addActionListener(ev -> switchPrivateChat(f.name));
+                                menu.add(msgItem);
+
+                                // Optional: Remove friend
+                                // JMenuItem removeItem = new JMenuItem("Supprimer");
+                                // menu.add(removeItem);
+                            }
                             menu.show(friendsList, e.getX(), e.getY());
                         }
                     }
@@ -441,7 +456,8 @@ public class ChatGUI extends JFrame implements MessageListener {
             JOptionPane.showMessageDialog(this, "Vous ne pouvez pas supprimer le canal général.");
             return;
         }
-        int confirm = JOptionPane.showConfirmDialog(this, "Êtes-vous sûr de vouloir supprimer la conversation #" + name + " ?",
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Êtes-vous sûr de vouloir supprimer la conversation #" + name + " ?",
                 "Confirmer la suppression", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             client.sendMessage("/delete " + name);
@@ -1198,6 +1214,8 @@ public class ChatGUI extends JFrame implements MessageListener {
 
                 if (response == JOptionPane.YES_OPTION) {
                     client.sendMessage("/friend accept " + requester);
+                } else { // NO or CLOSED
+                    client.sendMessage("/friend deny " + requester);
                 }
                 return;
             }
@@ -1511,6 +1529,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         System.out.println("DEBUG CLIENT: Received FRIENDLIST payload: " + diff);
         java.util.List<Friend> online = new java.util.ArrayList<>();
         java.util.List<Friend> offline = new java.util.ArrayList<>();
+        java.util.List<Friend> pending = new java.util.ArrayList<>();
 
         if (!diff.isEmpty()) {
             for (String part : diff.split(",")) {
@@ -1526,10 +1545,18 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
         }
 
-        System.out.println("DEBUG CLIENT: Parsed " + online.size() + " online, " + offline.size() + " offline.");
+        System.out.println("DEBUG CLIENT: Parsed " + online.size() + " online, " + offline.size() + " offline, "
+                + pending.size() + " pending.");
 
         SwingUtilities.invokeLater(() -> {
             friendsListModel.clear();
+
+            if (!pending.isEmpty()) {
+                friendsListModel.addElement("Demandes (" + pending.size() + ")");
+                for (Friend f : pending)
+                    friendsListModel.addElement(f);
+            }
+
             friendsListModel.addElement("En ligne (" + online.size() + ")");
             for (Friend f : online)
                 friendsListModel.addElement(f);
@@ -1588,7 +1615,6 @@ public class ChatGUI extends JFrame implements MessageListener {
                     lbl.setText(f.name);
                 }
 
-                // Add icon if available, for now just text distinction
                 return lbl;
             }
             return super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);

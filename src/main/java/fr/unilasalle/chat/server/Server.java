@@ -177,6 +177,15 @@ public class Server {
             String m = onlineMsg.getOrDefault(friend.toLowerCase(), "");
             sb.append(friend).append(":").append(s).append(":").append(m);
         }
+
+        // Add Pending Requests
+        java.util.List<String> pending = dbService.getPendingRequests(username);
+        for (String p : pending) {
+            if (sb.length() > 0)
+                sb.append(",");
+            sb.append(p).append(":pending");
+        }
+
         return sb.toString();
     }
 
