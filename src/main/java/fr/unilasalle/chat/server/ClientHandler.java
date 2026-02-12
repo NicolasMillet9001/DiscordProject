@@ -1,13 +1,11 @@
 package fr.unilasalle.chat.server;
 
-
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.util.Base64;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-
 
 public class ClientHandler extends Thread {
     private Socket socket;
@@ -28,7 +26,7 @@ public class ClientHandler extends Thread {
     public void setAvatar(String path) {
         this.avatar = path;
     }
-    
+
     public String getAvatar() {
         return avatar;
     }
@@ -91,13 +89,14 @@ public class ClientHandler extends Thread {
                         if (server.addUserName(parts[1])) {
                             this.userName = parts[1];
                             this.avatar = server.getDbService().getAvatar(this.userName); // Load avatar
-                            
+
                             server.broadcastAllUsers(); // Update global list now that name is set
                             System.out.println("DEBUG: triggering friend status update for " + this.userName);
                             server.broadcastFriendStatusUpdate(this.userName);
-                            
+
                             // Send login success with avatar info?
-                            writer.println("LOGIN_SUCCESS " + this.userName + " " + (this.avatar != null ? this.avatar : "null"));
+                            writer.println("LOGIN_SUCCESS " + this.userName + " "
+                                    + (this.avatar != null ? this.avatar : "null"));
                             writer.println("Welcome " + this.userName);
                             writer.println("You are in channel: " + channel);
 
@@ -316,8 +315,9 @@ public class ClientHandler extends Thread {
                     // Actually handleCommand uses split(" ", 3).
                     // /search query words
                     // parts[0]=/search, parts[1]=query, parts[2]=words
-                    if (parts.length > 2) query += " " + parts[2];
-                    
+                    if (parts.length > 2)
+                        query += " " + parts[2];
+
                     sendMessage("SEARCH_START " + query);
                     java.util.List<String> results = server.getDbService().searchMessages(query, this.userName);
                     for (String r : results) {
@@ -334,16 +334,17 @@ public class ClientHandler extends Thread {
                 }
                 break;
             // case "/privhistory":
-            //     if (parts.length < 2) {
-            //         sendMessage("Syntax: /privhistory <user>");
-            //     } else {
-            //         String target = parts[1];
-            //         java.util.List<String> history = server.getDbService().getPrivateHistory(this.userName, target, 50);
-            //         for (String msg : history) {
-            //             sendMessage("PRIVMSG " + target + " " + msg);
-            //         }
-            //     }
-            //     break;
+            // if (parts.length < 2) {
+            // sendMessage("Syntax: /privhistory <user>");
+            // } else {
+            // String target = parts[1];
+            // java.util.List<String> history =
+            // server.getDbService().getPrivateHistory(this.userName, target, 50);
+            // for (String msg : history) {
+            // sendMessage("PRIVMSG " + target + " " + msg);
+            // }
+            // }
+            // break;
             case "/status":
                 if (parts.length < 2) {
                     sendMessage("Syntax: /status <online|busy|away>");
@@ -360,18 +361,21 @@ public class ClientHandler extends Thread {
                 } else {
                     // Sanitize: remove colons and commas to preserve protocol integrity
                     String msg = parts.length == 3 ? parts[1] + " " + parts[2] : parts[1]; // handle partial split?
-                    // Actually parts is split by " ", 3. So parts[1] + parts[2] covers it roughly but logic in handleCommand is specific.
+                    // Actually parts is split by " ", 3. So parts[1] + parts[2] covers it roughly
+                    // but logic in handleCommand is specific.
                     // Let's rely on full command string or reconstruction.
                     // handleCommand splits by " ", 3.
                     // if I type /setmsg Hello World
                     // parts[0]=/setmsg, parts[1]=Hello, parts[2]=World
                     // if I type /setmsg Hello
                     // parts[0]=/setmsg, parts[1]=Hello
-                    
+
                     String raw = "";
-                    if (parts.length >= 2) raw += parts[1];
-                    if (parts.length >= 3) raw += " " + parts[2];
-                    
+                    if (parts.length >= 2)
+                        raw += parts[1];
+                    if (parts.length >= 3)
+                        raw += " " + parts[2];
+
                     this.statusMessage = raw.replace(",", " ").replace(":", " ");
                 }
                 server.broadcastFriendStatusUpdate(this.userName);
@@ -387,21 +391,22 @@ public class ClientHandler extends Thread {
                         byte[] data = Base64.getDecoder().decode(b64);
                         // Ensure transfer directory exists
                         File transferDir = new File("transfer");
-                        if (!transferDir.exists()) transferDir.mkdir();
-                        
+                        if (!transferDir.exists())
+                            transferDir.mkdir();
+
                         // Create unique name
                         String uniqueName = System.currentTimeMillis() + "_" + filename;
                         Files.write(Paths.get("transfer", uniqueName), data, StandardOpenOption.CREATE);
-                        
+
                         // Broadcast file link
                         // Format: FILE <uniqueID> <originalName>
                         String fileMsg = "FILE " + uniqueName + " " + filename;
                         server.broadcastToChannel(channel, fileMsg, this);
                         sendMessage("File uploaded successfully.");
                     } catch (IllegalArgumentException e) {
-                         sendMessage("Error: Invalid Base64 data.");
+                        sendMessage("Error: Invalid Base64 data.");
                     } catch (IOException e) {
-                         sendMessage("Error saving file: " + e.getMessage());
+                        sendMessage("Error saving file: " + e.getMessage());
                     }
                 }
                 break;
@@ -415,16 +420,18 @@ public class ClientHandler extends Thread {
                         sendMessage("Error: Invalid filename.");
                         return;
                     }
-                    
+
                     File f = new File("transfer", fileId);
                     if (f.exists()) {
                         try {
                             byte[] data = Files.readAllBytes(f.toPath());
                             String b64 = Base64.getEncoder().encodeToString(data);
                             // Protocol: FILEDOWNLOAD <file_id> <base64>
-                            // We need to send original name too? client might not know it if they just requested ID.
+                            // We need to send original name too? client might not know it if they just
+                            // requested ID.
                             // But usually client clicked a link that had both ID and Name.
-                            // Let's send just content for now, client saves as fileId (or we change protocol).
+                            // Let's send just content for now, client saves as fileId (or we change
+                            // protocol).
                             // Better: FILEDOWNLOAD <file_id> <base64>
                             sendMessage("FILEDOWNLOAD " + fileId + " " + b64);
                         } catch (IOException e) {
@@ -441,20 +448,21 @@ public class ClientHandler extends Thread {
                 } else {
                     String b64 = parts[1];
                     try {
-                         byte[] data = Base64.getDecoder().decode(b64);
-                         // Save to avatars/username.png
-                         String filename = this.userName + "_" + System.currentTimeMillis() + ".png";
-                         File avatarDir = new File("avatars");
-                         if (!avatarDir.exists()) avatarDir.mkdir();
-                         
-                         Files.write(Paths.get("avatars", filename), data, StandardOpenOption.CREATE);
-                         
-                         // Update DB
-                         server.getDbService().updateAvatar(this.userName, filename);
-                         this.avatar = filename;
-                         
-                         sendMessage("AVATAR_SET " + filename);
-                         server.broadcastAvatarUpdate(this.userName); 
+                        byte[] data = Base64.getDecoder().decode(b64);
+                        // Save to avatars/username.png
+                        String filename = this.userName + "_" + System.currentTimeMillis() + ".png";
+                        File avatarDir = new File("avatars");
+                        if (!avatarDir.exists())
+                            avatarDir.mkdir();
+
+                        Files.write(Paths.get("avatars", filename), data, StandardOpenOption.CREATE);
+
+                        // Update DB
+                        server.getDbService().updateAvatar(this.userName, filename);
+                        this.avatar = filename;
+
+                        sendMessage("AVATAR_SET " + filename);
+                        server.broadcastAvatarUpdate(this.userName);
                     } catch (Exception e) {
                         sendMessage("Error setting avatar: " + e.getMessage());
                     }
@@ -473,7 +481,8 @@ public class ClientHandler extends Thread {
                                 byte[] data = Files.readAllBytes(f.toPath());
                                 String b64 = Base64.getEncoder().encodeToString(data);
                                 sendMessage("AVATAR_DATA " + target + " " + b64);
-                            } catch (Exception e) {}
+                            } catch (Exception e) {
+                            }
                         }
                     }
                 }
@@ -492,18 +501,20 @@ public class ClientHandler extends Thread {
                             break;
                         }
                     }
-                    if (found) sendMessage("Calling " + target + "...");
-                    else sendMessage("User " + target + " not found or offline.");
+                    if (found)
+                        sendMessage("Calling " + target + "...");
+                    else
+                        sendMessage("User " + target + " not found or offline.");
                 }
                 break;
             case "/accept":
                 if (parts.length < 2) {
-                     sendMessage("Syntax: /accept <username>");
+                    sendMessage("Syntax: /accept <username>");
                 } else {
                     String caller = parts[1];
                     // Notify caller
                     boolean found = false;
-                     for (ClientHandler h : server.getUserThreads()) {
+                    for (ClientHandler h : server.getUserThreads()) {
                         if (h.getUserName().equalsIgnoreCase(caller)) {
                             h.sendMessage("CALL_ACCEPTED " + this.userName);
                             found = true;
@@ -520,10 +531,10 @@ public class ClientHandler extends Thread {
                 break;
             case "/deny":
                 if (parts.length < 2) {
-                     sendMessage("Syntax: /deny <username>");
+                    sendMessage("Syntax: /deny <username>");
                 } else {
                     String caller = parts[1];
-                     for (ClientHandler h : server.getUserThreads()) {
+                    for (ClientHandler h : server.getUserThreads()) {
                         if (h.getUserName().equalsIgnoreCase(caller)) {
                             h.sendMessage("CALL_DENIED " + this.userName);
                             break;
@@ -531,17 +542,37 @@ public class ClientHandler extends Thread {
                     }
                 }
                 break;
+            case "/wizz":
+                // If in private chat, send only to that user
+                // The client should send "/wizz" and maybe a target if in private?
+                // Actually, if we follow other commands, client sends "/wizz target" for
+                // private?
+                // Or just "/wizz" and server knows context?
+                // Server knows 'channel'. If 'channel' is a private room name,
+                // broadcastToChannel works!
+                // If 'channel' is "general", it broadcasts to general.
+                // Protocol: WIZZ <sender>
+
+                // However, for private chats, the "channel" variable in ClientHandler might be
+                // "general"
+                // if the client UI is just switching views but not officially sending "/join
+                // !PRIVATE_..."
+                // WAIT. ChatGUI DOES send "/join !PRIVATE_..." when switching private chat.
+                // So `this.channel` should be correct.
+
+                server.broadcastToChannel(channel, "WIZZ " + this.userName, this);
+                break;
             case "/hangup":
                 // End current call
                 String partner = server.getAudioServer().endCall(this.userName);
                 server.getVideoServer().endCall(this.userName);
-                
+
                 sendMessage("Call ended.");
-                
+
                 if (partner != null) {
                     server.getVideoServer().endCall(partner); // Should be redundant if symmetric but cleans up
                     // Notify partner
-                     for (ClientHandler h : server.getUserThreads()) {
+                    for (ClientHandler h : server.getUserThreads()) {
                         if (h.getUserName().equalsIgnoreCase(partner)) {
                             h.sendMessage("HANGUP " + this.userName);
                             break;
