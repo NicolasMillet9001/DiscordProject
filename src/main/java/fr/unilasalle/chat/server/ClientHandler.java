@@ -97,7 +97,7 @@ public class ClientHandler extends Thread {
                             server.broadcastFriendStatusUpdate(this.userName);
                             
                             // Send login success with avatar info?
-                            writer.println("LOGIN_SUCCESS " + this.userName + " " + (this.avatar != null ? this.avatar : "null"));
+                            writer.println("LOGIN_SUCCESS " + this.userName + " " + (this.avatar != null ? this.avatar : "default.png"));
                             writer.println("Welcome " + this.userName);
                             writer.println("You are in channel: " + channel);
 
@@ -466,14 +466,18 @@ public class ClientHandler extends Thread {
                 } else {
                     String target = parts[1];
                     String av = server.getDbService().getAvatar(target);
-                    if (av != null) {
-                        File f = new File("avatars", av);
-                        if (f.exists()) {
-                            try {
-                                byte[] data = Files.readAllBytes(f.toPath());
-                                String b64 = Base64.getEncoder().encodeToString(data);
-                                sendMessage("AVATAR_DATA " + target + " " + b64);
-                            } catch (Exception e) {}
+                    if (av == null || av.trim().isEmpty()) av = "default.png";
+                    
+                    File f = new File("avatars", av);
+                    if (!f.exists()) f = new File("avatars", "default.png");
+                    
+                    if (f.exists()) {
+                        try {
+                            byte[] dataBytes = Files.readAllBytes(f.toPath());
+                            String b64 = Base64.getEncoder().encodeToString(dataBytes);
+                            sendMessage("AVATAR_DATA " + target + " " + b64);
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
                     }
                 }

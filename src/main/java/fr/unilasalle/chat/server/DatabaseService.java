@@ -72,7 +72,7 @@ public class DatabaseService {
     }
 
     public synchronized boolean register(String username, String password) {
-        String sql = "INSERT INTO users(username, password) VALUES(?, ?)";
+        String sql = "INSERT INTO users(username, password, avatar) VALUES(?, ?, 'default.png')";
         try (Connection conn = connect();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, username);

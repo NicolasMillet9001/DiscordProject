@@ -158,7 +158,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         
         JLabel avatarLabel = new JLabel();
         avatarLabel.setPreferredSize(new Dimension(50, 50));
-        avatarLabel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        // avatarLabel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
         avatarLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
         avatarLabel.setToolTipText("Cliquez pour changer votre photo");
         avatarLabel.addMouseListener(new MouseAdapter() {
@@ -533,7 +533,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         
         partnerAvatarLabel = new JLabel();
         partnerAvatarLabel.setPreferredSize(new Dimension(80, 80));
-        partnerAvatarLabel.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+        // partnerAvatarLabel.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
         partnerAvatarLabel.setVisible(false);
         titlePanel.add(partnerAvatarLabel);
 
@@ -818,7 +818,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                 
                 // Avatar icon
                 if (userAvatars.containsKey(user)) {
-                    Image img = userAvatars.get(user).getScaledInstance(20, 20, Image.SCALE_SMOOTH);
+                    Image img = userAvatars.get(user).getScaledInstance(15, 15, Image.SCALE_SMOOTH);
                     label.setIcon(new ImageIcon(img));
                 } else {
                     label.setIcon(null);
