@@ -376,7 +376,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                                 menu.add(msgItem);
 
                                 JMenuItem callItem = new JMenuItem("Appeler");
-                                callItem.addActionListener(ev -> startCall(f.name));
+                                callItem.addActionListener(ev -> initiateCall(f.name));
                                 menu.add(callItem);
 
                                 // Optional: Remove friend
@@ -770,9 +770,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                 endCall();
             } else {
                 if (isPrivateMode && currentChannel != null) {
-                    client.sendMessage("/call " + currentChannel);
-                    sidebarCallBtn.setText("Fin d'appel");
-                    sidebarCallBtn.setForeground(Color.RED);
+                    initiateCall(currentChannel);
                 }
             }
         });
@@ -881,7 +879,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                             menu.add(msgItem);
 
                             JMenuItem callItem = new JMenuItem("Appeler");
-                            callItem.addActionListener(ev -> startCall(selected));
+                            callItem.addActionListener(ev -> initiateCall(selected));
                             menu.add(callItem);
 
                             JMenuItem addItem = new JMenuItem("Ajouter en ami");
@@ -2023,7 +2021,25 @@ public class ChatGUI extends JFrame implements MessageListener {
             callWindow = null;
         }
         inCall = false;
+        sidebarCallBtn.setText("Appeler");
+        sidebarCallBtn.setForeground(MsnTheme.TEXT_NORMAL);
         appendToChat("Appel terminé.", Color.GRAY);
+    }
+
+    private void initiateCall(String target) {
+        if (inCall) return;
+        
+        String status = channelUserStatus.getOrDefault(target, "offline");
+        if (status.equals("offline") || status.equals("busy")) {
+            String reason = status.equals("offline") ? "est hors ligne" : "est occupé(e)";
+            JOptionPane.showMessageDialog(this, target + " " + reason + " et ne peut pas être appelé(e) pour le moment.", "Appel Impossible", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        client.sendMessage("/call " + target);
+        sidebarCallBtn.setText("Fin d'appel");
+        sidebarCallBtn.setForeground(Color.RED);
+        appendToChat("Appel de " + target + " en cours...", Color.BLUE);
     }
 
     class XPGradientPanel extends JPanel {
