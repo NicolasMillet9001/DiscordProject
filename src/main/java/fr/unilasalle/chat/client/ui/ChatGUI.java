@@ -16,6 +16,7 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.KeyAdapter;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -123,10 +124,10 @@ public class ChatGUI extends JFrame implements MessageListener {
         kit = new HTMLEditorKit();
         // Set basic font via CSS
         StyleSheet styleSheet = kit.getStyleSheet();
-        styleSheet.addRule("body { font-family: Tahoma; font-size: 12px; margin: 0; padding: 0; }");
-        styleSheet.addRule(".msg-block { margin-bottom: 5px; padding: 5px; }");
-        styleSheet.addRule(".header { color: #777777; font-size: 10px; margin-bottom: 2px; }");
-        styleSheet.addRule(".content { font-size: 13px; margin-left: 10px; }");
+        styleSheet.addRule("body { font-family: Tahoma; font-size: 11px; margin: 0; padding: 0; }");
+        styleSheet.addRule(".msg-table { width: 100%; border-collapse: collapse; margin-bottom: 5px; }");
+        styleSheet.addRule(".header { color: #888; font-size: 10px; margin-bottom: 2px; }");
+        styleSheet.addRule(".content { font-size: 12px; }");
 
         // Initialize default channel doc
         channelDocs.put("general", (HTMLDocument) kit.createDefaultDocument());
@@ -549,11 +550,16 @@ public class ChatGUI extends JFrame implements MessageListener {
         
         centerPanel.add(chatHeader, BorderLayout.NORTH);
 
-        chatArea = new JTextPane();
+        chatArea = new JTextPane() {
+            @Override
+            public boolean getScrollableTracksViewportWidth() {
+                return true;
+            }
+        };
         chatArea.setEditorKit(kit);
         chatArea.setEditable(false);
         chatArea.setBackground(Color.WHITE);
-        chatArea.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
+        chatArea.setMargin(new Insets(5, 5, 5, 25));
         chatArea.setFont(MsnTheme.FONT_MAIN);
         
         chatArea.addHyperlinkListener(e -> {
@@ -568,8 +574,9 @@ public class ChatGUI extends JFrame implements MessageListener {
         });
 
         chatArea.setDocument(channelDocs.get("general"));
-        JScrollPane scrollPane = new JScrollPane(chatArea);
+        JScrollPane scrollPane = new JScrollPane(chatArea, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.setBorder(BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR));
+        scrollPane.setViewportBorder(BorderFactory.createEmptyBorder(0, 0, 0, 5));
         centerPanel.add(scrollPane, BorderLayout.CENTER);
 
         // Input Area
@@ -628,39 +635,8 @@ public class ChatGUI extends JFrame implements MessageListener {
         toolbar.add(bgBtn);
         toolbar.add(resetBtn);
 
-        JButton wizzBtn = new JButton("Wizz!");
-        wizzBtn.setFont(new Font("Arial", Font.BOLD, 12));
-        wizzBtn.setForeground(Color.RED);
-        wizzBtn.setToolTipText("Envoyer un Wizz !");
-        styleToolbarButton(wizzBtn);
-        wizzBtn.addActionListener(e -> {
-            client.sendMessage("/wizz");
-        });
-        toolbar.add(wizzBtn);
 
-        JButton fileBtn = new JButton("F");
-        fileBtn.setFont(new Font("Arial", Font.BOLD, 12));
-        fileBtn.setToolTipText("Envoyer un fichier");
-        styleToolbarButton(fileBtn);
-        fileBtn.addActionListener(e -> {
-            JFileChooser chooser = new JFileChooser();
-            int res = chooser.showOpenDialog(this);
-            if (res == JFileChooser.APPROVE_OPTION) {
-                try {
-                    File f = chooser.getSelectedFile();
-                    byte[] data = Files.readAllBytes(f.toPath());
-                    String b64 = Base64.getEncoder().encodeToString(data);
-                    String safeName = f.getName().replace(" ", "_");
-                    client.sendMessage("/upload " + safeName + " " + b64);
-                    appendToChat("Envoi du fichier " + safeName + "...", Color.GRAY);
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(this, "Erreur lors de la lecture du fichier.");
-                }
-            }
-        });
-        toolbar.add(fileBtn);
 
-        toolbar.add(fileBtn);
 
         inputPanel.add(toolbar, BorderLayout.NORTH);
 
@@ -669,6 +645,12 @@ public class ChatGUI extends JFrame implements MessageListener {
                 BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR),
                 new EmptyBorder(5, 5, 5, 5)));
         inputField.addActionListener(e -> sendMessage());
+        inputField.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyTyped(KeyEvent e) {
+                soundManager.playKey(e.getKeyChar() == ' ');
+            }
+        });
         inputPanel.add(inputField, BorderLayout.CENTER);
 
         JButton sendBtn = new WindowsXPButton("Envoyer");
@@ -754,6 +736,14 @@ public class ChatGUI extends JFrame implements MessageListener {
         attachUserListContextMenu(userList);
         userPanel.add(new JScrollPane(userList), BorderLayout.CENTER);
 
+        JButton groupWizzBtn = new WindowsXPButton("Wizz!");
+        groupWizzBtn.setForeground(Color.RED);
+        groupWizzBtn.addActionListener(e -> client.sendMessage("/wizz"));
+        JPanel groupWizzContainer = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        groupWizzContainer.setOpaque(false);
+        groupWizzContainer.add(groupWizzBtn);
+        userPanel.add(groupWizzContainer, BorderLayout.SOUTH);
+
         // Card 2: Avatar Sidebar (Private)
         avatarSidebar = new JPanel();
         avatarSidebar.setLayout(new BoxLayout(avatarSidebar, BoxLayout.Y_AXIS));
@@ -787,6 +777,12 @@ public class ChatGUI extends JFrame implements MessageListener {
             }
         });
 
+        JButton sidebarWizzBtn = new WindowsXPButton("Wizz!");
+        sidebarWizzBtn.setMaximumSize(new Dimension(100, 30));
+        sidebarWizzBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        sidebarWizzBtn.setForeground(Color.RED);
+        sidebarWizzBtn.addActionListener(e -> client.sendMessage("/wizz"));
+
         // My Section
         JPanel pBottom = new JPanel(new FlowLayout(FlowLayout.CENTER));
         pBottom.setOpaque(false);
@@ -802,6 +798,8 @@ public class ChatGUI extends JFrame implements MessageListener {
         avatarSidebar.add(partnerMoodLabel);
         avatarSidebar.add(Box.createVerticalStrut(5));
         avatarSidebar.add(sidebarCallBtn);
+        avatarSidebar.add(Box.createVerticalStrut(5));
+        avatarSidebar.add(sidebarWizzBtn);
         avatarSidebar.add(Box.createVerticalGlue());
         avatarSidebar.add(myMoodLabel);
         avatarSidebar.add(pBottom);
@@ -1221,21 +1219,25 @@ public class ChatGUI extends JFrame implements MessageListener {
                 int split = msg.indexOf("]:");
                 if (split > 0) {
                     String header = msg.substring(1, split);
-                    String content = msg.substring(split + 3);
-
-                    String style = "background-color:#f0e6ff; border-left: 3px solid #800080; padding: 5px;";
+                    String content = wrapLongWords(msg.substring(split + 3));
                     boolean isMe = header.contains(username != null ? username : "");
+                    
+                    html.append("<table class='msg-table' width='100%'><tr>");
                     if (isMe) {
-                        style += " margin-left: 50px; text-align: right;";
+                        html.append("<td width='40'></td>");
+                        html.append("<td style='background-color:#f0e6ff; border-right: 3px solid #800080; padding: 5px; text-align: right;'>");
                     } else {
-                        style += " margin-right: 50px;";
+                        html.append("<td style='background-color:#f0e6ff; border-left: 3px solid #800080; padding: 5px; text-align: left;'>");
                     }
-
-                    html.append("<div class='msg-block' style='" + style + "'>");
-                    html.append("<div class='header' style='color:#800080; font-weight:bold;'>").append(header)
-                            .append(":</div>");
+                    
+                    html.append("<div class='header' style='color:#800080; font-weight:bold;'>").append(header).append(":</div>");
                     html.append("<div class='content' style='font-style:italic;'>").append(content).append("</div>");
-                    html.append("</div>");
+                    html.append("</td>");
+                    
+                    if (!isMe) {
+                        html.append("<td width='40'></td>");
+                    }
+                    html.append("</tr></table>");
 
                     kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
                     return;
@@ -1303,12 +1305,44 @@ public class ChatGUI extends JFrame implements MessageListener {
 
             // Fallback for simple messages
             String safeMsg = msg.replace("<", "&lt;").replace(">", "&gt;");
-            kit.insertHTML(doc, doc.getLength(), "<div style='color:gray; font-style:italic;'>" + safeMsg + "</div>", 0,
+            kit.insertHTML(doc, doc.getLength(), "<div style='color:gray; font-style:italic;'>" + wrapLongWords(safeMsg) + "</div>", 0,
                     0, null);
 
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private String wrapLongWords(String text) {
+        if (text == null) return null;
+        StringBuilder sb = new StringBuilder();
+        int count = 0;
+        boolean inTag = false;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '<') inTag = true;
+            if (c == '>') {
+                inTag = false;
+                sb.append(c);
+                continue;
+            }
+            if (inTag) {
+                sb.append(c);
+                continue;
+            }
+
+            if (Character.isWhitespace(c)) {
+                count = 0;
+            } else {
+                count++;
+                if (count > 20) { 
+                    sb.append("&#8203;"); 
+                    count = 0;
+                }
+            }
+            sb.append(c);
+        }
+        return sb.toString();
     }
 
     private void appendFormattedBlock(HTMLDocument doc, String timestamp, String user, String content)
@@ -1334,26 +1368,31 @@ public class ChatGUI extends JFrame implements MessageListener {
                     break;
             }
         }
-
-        String divStyle = "class='msg-block'";
-        String styleAttr = "color:" + fgHex + ";";
-        if (bgHex != null) {
-            styleAttr += " background-color:" + bgHex + ";";
-        }
+        cleanContent = wrapLongWords(cleanContent);
 
         boolean isMe = user.equalsIgnoreCase(username != null ? username : "");
+        StringBuilder html = new StringBuilder();
+        
+        html.append("<table class='msg-table' width='100%'><tr>");
+        
+        String style = "color:" + fgHex + ";";
+        if (bgHex != null) style += " background-color:" + bgHex + ";";
+
         if (isMe) {
-            styleAttr += " text-align: right; margin-left: 50px;";
+            html.append("<td width='50'></td>");
+            html.append("<td style='").append(style).append(" text-align: right; padding: 2px;'>");
         } else {
-            styleAttr += " margin-right: 50px;";
+            html.append("<td style='").append(style).append(" text-align: left; padding: 2px;'>");
         }
 
-        StringBuilder html = new StringBuilder();
-        html.append("<div ").append(divStyle).append(" style='").append(styleAttr).append("'>");
-        html.append("<div class='header' style='color:#999;'>").append(timestamp).append(" - ").append(user)
-                .append(":</div>");
+        html.append("<div class='header' style='color:#999;'>").append(timestamp).append(" - ").append(user).append(":</div>");
         html.append("<div class='content'>").append(cleanContent).append("</div>");
-        html.append("</div>");
+        html.append("</td>");
+        
+        if (!isMe) {
+            html.append("<td width='50'></td>");
+        }
+        html.append("</tr></table>");
 
         kit.insertHTML(doc, doc.getLength(), html.toString(), 0, 0, null);
     }
