@@ -63,6 +63,10 @@ public class ChatGUI extends JFrame implements MessageListener {
 
     private Image ownAvatarImage;
     private String ownStatusMessage = "";
+    private String currentOnlineStatusCode = "online";
+
+    public void setOwnStatusMessage(String msg) { this.ownStatusMessage = msg; }
+    public void setCurrentOnlineStatusCode(String code) { this.currentOnlineStatusCode = code; }
     private Set<String> requestedAvatars = new HashSet<>();
 
     private JPanel rightSidebarContainer;
@@ -176,7 +180,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         avatarLabel.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                new ProfileDialog(ChatGUI.this, username, client, ownAvatarImage, ownStatusMessage).setVisible(true);
+                new ProfileDialog(ChatGUI.this, username, client, ownAvatarImage, ownStatusMessage, currentOnlineStatusCode).setVisible(true);
             }
         });
 
@@ -198,36 +202,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         userStatus.setFont(MsnTheme.FONT_MAIN);
         userStatus.setForeground(Color.WHITE);
 
-        JComboBox<String> statusCombo = new JComboBox<>(new String[] { "En ligne", "Occupé", "Absent", "Invisible" });
-        statusCombo.setFont(new Font("Tahoma", Font.PLAIN, 11));
-        statusCombo.addActionListener(e -> {
-            String s = (String) statusCombo.getSelectedItem();
-            String code = "online";
-            if ("Occupé".equals(s))
-                code = "busy";
-            else if ("Absent".equals(s))
-                code = "away";
-            else if ("Invisible".equals(s))
-                code = "offline"; // functionally offline for others
-
-            client.sendMessage("/status " + code);
-        });
-
-        JButton msgBtn = new JButton("...");
-        msgBtn.setToolTipText("Modifier votre message perso");
-        msgBtn.setPreferredSize(new Dimension(25, 20));
-        msgBtn.setFont(new Font("Tahoma", Font.PLAIN, 10));
-        msgBtn.addActionListener(e -> {
-            String m = JOptionPane.showInputDialog(this, "Message personnel :", "");
-            if (m != null) {
-                client.sendMessage("/setmsg " + m);
-                ownStatusMessage = m;
-            }
-        });
-
         statusPanel.add(userStatus);
-        statusPanel.add(statusCombo);
-        statusPanel.add(msgBtn);
 
         header.add(statusPanel, BorderLayout.EAST);
 
