@@ -75,11 +75,11 @@ public class CallWindow extends JFrame {
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
         controls.setOpaque(false);
         
-        JButton camBtn = createCircleButton("Caméra", new Color(100, 100, 100));
-        camBtn.addActionListener(e -> {
-            onCamera.actionPerformed(e);
-            toggleState(camBtn);
-        });
+        // JButton camBtn = createCircleButton("Caméra", new Color(100, 100, 100));
+        // camBtn.addActionListener(e -> {
+        //     onCamera.actionPerformed(e);
+        //     toggleState(camBtn);
+        // });
         
         JButton screenBtn = createCircleButton("Ecran", new Color(100, 100, 100));
         screenBtn.addActionListener(e -> {
@@ -90,7 +90,7 @@ public class CallWindow extends JFrame {
         JButton hangupBtn = createCircleButton("Fin", Color.RED);
         hangupBtn.addActionListener(onHangup);
         
-        controls.add(camBtn);
+        // controls.add(camBtn);
         controls.add(screenBtn);
         controls.add(hangupBtn);
         
