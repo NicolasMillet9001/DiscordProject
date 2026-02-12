@@ -2135,6 +2135,13 @@ public class ChatGUI extends JFrame implements MessageListener {
     }
 
     private void shakeWindow() {
+        // Force window to front and restore if minimized
+        if (getExtendedState() == JFrame.ICONIFIED) {
+            setExtendedState(JFrame.NORMAL);
+        }
+        toFront();
+        requestFocus();
+
         final Point original = getLocation();
         final int shakeAmplitude = 10;
         final int shakeDuration = 500; // ms
