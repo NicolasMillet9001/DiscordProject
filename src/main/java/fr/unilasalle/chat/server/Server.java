@@ -18,7 +18,12 @@ public class Server {
     public Server(int port) {
         this.port = port;
         this.dbService = new DatabaseService();
-        this.knownChannels.add("general");
+        // Load persistency
+        this.knownChannels.addAll(dbService.getChannels());
+        if (this.knownChannels.isEmpty()) {
+            this.knownChannels.add("general");
+        }
+        
         try {
             this.audioServer = new fr.unilasalle.chat.audio.AudioServer(port + 1);
             this.audioServer.start();
@@ -281,6 +286,7 @@ public class Server {
     public void checkAndAddChannel(String channelName) {
         if (!knownChannels.contains(channelName)) {
             knownChannels.add(channelName);
+            dbService.addChannel(channelName);
             broadcastChannelList();
         }
     }
@@ -288,6 +294,7 @@ public class Server {
     public void deleteChannel(String channelName) {
         if (knownChannels.contains(channelName)) {
             knownChannels.remove(channelName);
+            dbService.removeChannel(channelName);
 
             // Move users in this channel to general or kick them
             for (ClientHandler user : userThreads) {
@@ -306,6 +313,7 @@ public class Server {
         if (knownChannels.contains(oldName) && !knownChannels.contains(newName)) {
             knownChannels.remove(oldName);
             knownChannels.add(newName);
+            dbService.renameChannel(oldName, newName);
 
             for (ClientHandler user : userThreads) {
                 if (user.getChannel().equalsIgnoreCase(oldName)) {

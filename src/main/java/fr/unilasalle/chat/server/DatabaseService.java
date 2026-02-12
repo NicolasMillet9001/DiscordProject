@@ -18,6 +18,7 @@ public class DatabaseService {
             createTable();
             createMessageTable();
             initFriendTables();
+            createChannelsTable();
         } catch (ClassNotFoundException | SQLException e) {
             e.printStackTrace();
         }
@@ -460,5 +461,66 @@ public class DatabaseService {
             e.printStackTrace();
         }
         return results;
+    }
+
+    public java.util.List<String> getChannels() {
+        java.util.List<String> channels = new java.util.ArrayList<>();
+        String sql = "SELECT name FROM channels";
+        try (Connection conn = connect();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                channels.add(rs.getString("name"));
+            }
+        } catch (SQLException e) {
+            System.out.println("Error getting channels: " + e.getMessage());
+        }
+        return channels;
+    }
+
+    public void addChannel(String name) {
+        String sql = "INSERT OR IGNORE INTO channels(name) VALUES(?)";
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, name);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Error adding channel: " + e.getMessage());
+        }
+    }
+
+    public void removeChannel(String name) {
+        String sql = "DELETE FROM channels WHERE name = ?";
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, name);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Error removing channel: " + e.getMessage());
+        }
+    }
+
+    public void renameChannel(String oldName, String newName) {
+        String sql = "UPDATE channels SET name = ? WHERE name = ?";
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, newName);
+            pstmt.setString(2, oldName);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Error renaming channel: " + e.getMessage());
+        }
+    }
+
+    private void createChannelsTable() throws SQLException {
+        String sql = "CREATE TABLE IF NOT EXISTS channels (" +
+                "name TEXT PRIMARY KEY" +
+                ");";
+        try (Connection conn = connect();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+            // Ensure 'general' exists
+            stmt.execute("INSERT OR IGNORE INTO channels(name) VALUES('general')");
+        }
     }
 }
