@@ -60,7 +60,7 @@ public class ChatGUI extends JFrame implements MessageListener {
     private Map<String, Image> userAvatars = new HashMap<>();
     private JLabel partnerAvatarLabel;
     private JLabel talkingTo;
-    
+
     private Image ownAvatarImage;
     private String ownStatusMessage = "";
     private Set<String> requestedAvatars = new HashSet<>();
@@ -155,7 +155,6 @@ public class ChatGUI extends JFrame implements MessageListener {
         appTitle.setFont(new Font("Trebuchet MS", Font.BOLD, 18));
         appTitle.setForeground(Color.WHITE);
 
-        
         JLabel avatarLabel = new JLabel();
         avatarLabel.setPreferredSize(new Dimension(50, 50));
         // avatarLabel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
@@ -167,7 +166,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                 new ProfileDialog(ChatGUI.this, username, client, ownAvatarImage, ownStatusMessage).setVisible(true);
             }
         });
-        
+
         // Expose avatarLabel to update it later
         this.headerAvatar = avatarLabel;
         header.add(avatarLabel, BorderLayout.CENTER); // Center or East?
@@ -176,7 +175,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         left.setOpaque(false);
         left.add(avatarLabel);
         left.add(appTitle);
-        
+
         header.add(left, BorderLayout.WEST);
 
         JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -185,16 +184,19 @@ public class ChatGUI extends JFrame implements MessageListener {
         JLabel userStatus = new JLabel("<html>Connecté(e) en tant que <b>" + username + "</b></html>");
         userStatus.setFont(MsnTheme.FONT_MAIN);
         userStatus.setForeground(Color.WHITE);
-        
-        JComboBox<String> statusCombo = new JComboBox<>(new String[]{"En ligne", "Occupé", "Absent", "Invisible"});
+
+        JComboBox<String> statusCombo = new JComboBox<>(new String[] { "En ligne", "Occupé", "Absent", "Invisible" });
         statusCombo.setFont(new Font("Tahoma", Font.PLAIN, 11));
         statusCombo.addActionListener(e -> {
             String s = (String) statusCombo.getSelectedItem();
             String code = "online";
-            if ("Occupé".equals(s)) code = "busy";
-            else if ("Absent".equals(s)) code = "away";
-            else if ("Invisible".equals(s)) code = "offline"; // functionally offline for others
-            
+            if ("Occupé".equals(s))
+                code = "busy";
+            else if ("Absent".equals(s))
+                code = "away";
+            else if ("Invisible".equals(s))
+                code = "offline"; // functionally offline for others
+
             client.sendMessage("/status " + code);
         });
 
@@ -527,10 +529,10 @@ public class ChatGUI extends JFrame implements MessageListener {
         JPanel chatHeader = new JPanel(new BorderLayout());
         chatHeader.setBackground(Color.WHITE);
         chatHeader.setBorder(new MatteBorder(0, 0, 1, 0, MsnTheme.BORDER_COLOR));
-        
+
         JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         titlePanel.setOpaque(false);
-        
+
         partnerAvatarLabel = new JLabel();
         partnerAvatarLabel.setPreferredSize(new Dimension(80, 80));
         // partnerAvatarLabel.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
@@ -541,7 +543,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         talkingTo.setFont(MsnTheme.FONT_TITLE);
         talkingTo.setForeground(MsnTheme.TEXT_NORMAL);
         titlePanel.add(talkingTo);
-        
+
         chatHeader.add(titlePanel, BorderLayout.WEST);
         chatPanel.add(chatHeader, BorderLayout.NORTH);
 
@@ -553,14 +555,16 @@ public class ChatGUI extends JFrame implements MessageListener {
         // Force font style
         chatArea.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
         chatArea.setFont(MsnTheme.FONT_MAIN);
-        
+
         // Add Hyperlink Listener for file downloads
         chatArea.addHyperlinkListener(e -> {
             if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
                 String desc = e.getDescription(); // e.g. "download:12345_file.png"
                 if (desc.startsWith("download:")) {
                     String fileId = desc.substring("download:".length());
-                    int confirm = JOptionPane.showConfirmDialog(this, "Voulez-vous télécharger le fichier " + fileId + " ?", "Téléchargement", JOptionPane.YES_NO_OPTION);
+                    int confirm = JOptionPane.showConfirmDialog(this,
+                            "Voulez-vous télécharger le fichier " + fileId + " ?", "Téléchargement",
+                            JOptionPane.YES_NO_OPTION);
                     if (confirm == JOptionPane.YES_OPTION) {
                         client.sendMessage("/download " + fileId);
                     }
@@ -630,7 +634,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         toolbar.add(colorBtn);
         toolbar.add(bgBtn);
         toolbar.add(resetBtn);
-        
+
         JButton searchBtn = new JButton("?");
         searchBtn.setFont(new Font("Arial", Font.BOLD, 12));
         searchBtn.setToolTipText("Rechercher dans les messages");
@@ -644,7 +648,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         toolbar.add(searchBtn);
 
         JButton fileBtn = new JButton("F");
-        fileBtn.setFont(new Font("Arial", Font.BOLD, 12)); 
+        fileBtn.setFont(new Font("Arial", Font.BOLD, 12));
         fileBtn.setToolTipText("Envoyer un fichier");
         styleToolbarButton(fileBtn);
         fileBtn.addActionListener(e -> {
@@ -690,18 +694,20 @@ public class ChatGUI extends JFrame implements MessageListener {
                 // Only allowed in private chat or ask for username
                 String target = null;
                 if (isPrivateMode) {
-                   // deduce target from private room name? !PRIVATE_user1_user2
-                   // room name: !PRIVATE_Alice_Bob. If I am Alice, target is Bob.
-                   String room = currentChannel;
-                   if (room.startsWith("!PRIVATE_")) {
-                       String[] p = room.substring(9).split("_");
-                       if (p.length >= 2) {
-                           if (p[0].equalsIgnoreCase(username)) target = p[1];
-                           else target = p[0];
-                       }
-                   }
+                    // deduce target from private room name? !PRIVATE_user1_user2
+                    // room name: !PRIVATE_Alice_Bob. If I am Alice, target is Bob.
+                    String room = currentChannel;
+                    if (room.startsWith("!PRIVATE_")) {
+                        String[] p = room.substring(9).split("_");
+                        if (p.length >= 2) {
+                            if (p[0].equalsIgnoreCase(username))
+                                target = p[1];
+                            else
+                                target = p[0];
+                        }
+                    }
                 }
-                
+
                 if (target == null) {
                     target = JOptionPane.showInputDialog(this, "Entrez le nom de l'utilisateur à appeler :");
                 }
@@ -815,7 +821,7 @@ public class ChatGUI extends JFrame implements MessageListener {
             JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
             if (value instanceof String) {
                 String user = (String) value;
-                
+
                 // Avatar icon
                 if (userAvatars.containsKey(user)) {
                     Image img = userAvatars.get(user).getScaledInstance(15, 15, Image.SCALE_SMOOTH);
@@ -832,15 +838,24 @@ public class ChatGUI extends JFrame implements MessageListener {
                     String st = channelUserStatus.getOrDefault(user, "online");
                     Color c2 = Color.BLACK;
                     String suffix = "";
-                    
-                    if (st.equals("online")) { c2 = new Color(0, 128, 0); }
-                    else if (st.equals("busy")) { c2 = Color.RED; suffix = " (Occupé)"; }
-                    else if (st.equals("away")) { c2 = Color.ORANGE; suffix = " (Absent)"; }
-                    
+
+                    if (st.equals("online")) {
+                        c2 = new Color(0, 128, 0);
+                    } else if (st.equals("busy")) {
+                        c2 = Color.RED;
+                        suffix = " (Occupé)";
+                    } else if (st.equals("away")) {
+                        c2 = Color.ORANGE;
+                        suffix = " (Absent)";
+                    }
+
                     String msg = channelUserMsg.getOrDefault(user, "");
-                    if (!msg.isEmpty()) label.setToolTipText(msg); else label.setToolTipText(null);
-                    
-                    label.setForeground(c2); 
+                    if (!msg.isEmpty())
+                        label.setToolTipText(msg);
+                    else
+                        label.setToolTipText(null);
+
+                    label.setForeground(c2);
                     label.setFont(MsnTheme.FONT_BOLD);
                     label.setText(user + suffix);
                 } else {
@@ -1383,16 +1398,11 @@ public class ChatGUI extends JFrame implements MessageListener {
             if (message.startsWith("FRIEND_REQ ")) {
                 System.out.println("DEBUG: Received FRIEND_REQ: " + message);
                 String requester = message.substring("FRIEND_REQ ".length());
-                int response = JOptionPane.showConfirmDialog(this,
-                        "Vous avez une demande d'ami de " + requester + ".\nVoulez-vous accepter ?",
-                        "Demande d'ami",
-                        JOptionPane.YES_NO_OPTION);
 
-                if (response == JOptionPane.YES_OPTION) {
-                    client.sendMessage("/friend accept " + requester);
-                } else { // NO or CLOSED
-                    client.sendMessage("/friend deny " + requester);
-                }
+                // Log and refresh list (it should show in Pending section now)
+                appendToChat("<b>Demande d'ami reçue de " + requester + "</b> (Voir liste d'amis)", Color.BLUE);
+                soundManager.playMessageReceived(); // Or a specific sound if available
+                client.sendMessage("/friend list");
                 return;
             }
 
@@ -1623,39 +1633,39 @@ public class ChatGUI extends JFrame implements MessageListener {
                 // Switch to search view
                 String query = message.substring("SEARCH_START ".length());
                 String searchChan = "!Recherche";
-                
+
                 if (!channelDocs.containsKey(searchChan)) {
-                     channelDocs.put(searchChan, (HTMLDocument) kit.createDefaultDocument());
+                    channelDocs.put(searchChan, (HTMLDocument) kit.createDefaultDocument());
                 }
-                // Clear previous search? HTMLDocument doesn't have clear(). 
+                // Clear previous search? HTMLDocument doesn't have clear().
                 channelDocs.put(searchChan, (HTMLDocument) kit.createDefaultDocument());
-                
+
                 currentChannel = searchChan;
                 chatArea.setDocument(channelDocs.get(searchChan));
-                
+
                 appendToChat("<b>Résultats de la recherche pour : " + query + "</b><br><hr>", Color.BLUE);
                 return;
             }
-            
+
             if (message.startsWith("SEARCH_RESULT ")) {
-                 String data = message.substring("SEARCH_RESULT ".length());
-                 // Format: CHANNEL:channel:user:ts:content OR PRIVATE:other:sender:ts:content
-                 String[] parts = data.split(":", 5);
-                 if (parts.length >= 5) {
-                     String type = parts[0];
-                     String location = parts[1];
-                     String user = parts[2];
-                     String ts = parts[3];
-                     // ts is YYYY-MM-DD HH:MM:SS from sqlite datetime(..., localtime)
-                     // Parse it to make it nicer?
-                     String content = parts[4];
-                     
-                     String displayRaw = "[" + ts + "] [" + location + "] <b>" + user + "</b>: " + content;
-                     appendToChat(displayRaw, Color.DARK_GRAY);
-                 }
-                 return;
+                String data = message.substring("SEARCH_RESULT ".length());
+                // Format: CHANNEL:channel:user:ts:content OR PRIVATE:other:sender:ts:content
+                String[] parts = data.split(":", 5);
+                if (parts.length >= 5) {
+                    String type = parts[0];
+                    String location = parts[1];
+                    String user = parts[2];
+                    String ts = parts[3];
+                    // ts is YYYY-MM-DD HH:MM:SS from sqlite datetime(..., localtime)
+                    // Parse it to make it nicer?
+                    String content = parts[4];
+
+                    String displayRaw = "[" + ts + "] [" + location + "] <b>" + user + "</b>: " + content;
+                    appendToChat(displayRaw, Color.DARK_GRAY);
+                }
+                return;
             }
-            
+
             if (message.equals("SEARCH_END")) {
                 appendToChat("<hr><i>Fin de la recherche.</i>", Color.GRAY);
                 scrollToBottom();
@@ -1664,46 +1674,49 @@ public class ChatGUI extends JFrame implements MessageListener {
 
             if (message.startsWith("AVATAR_SET ")) {
                 String filename = message.substring("AVATAR_SET ".length());
-                // We just set it, request data back to display? 
+                // We just set it, request data back to display?
                 // Or just assume successful. To display, we need the image.
                 client.sendMessage("/getavatar " + username);
                 return;
             }
-            
+
             if (message.startsWith("AVATAR_DATA ")) {
-                 String[] parts = message.split(" ", 3);
-                 if (parts.length >= 3) {
-                     String user = parts[1];
-                     String b64 = parts[2];
-                     try {
-                         byte[] data = Base64.getDecoder().decode(b64);
-                         ImageIcon icon = new ImageIcon(data);
-                         Image rawImg = icon.getImage();
-                         userAvatars.put(user, rawImg);
-                         
-                         if (user.equals(username)) {
-                             ownAvatarImage = rawImg;
-                             if (headerAvatar != null) {
+                String[] parts = message.split(" ", 3);
+                if (parts.length >= 3) {
+                    String user = parts[1];
+                    String b64 = parts[2];
+                    try {
+                        byte[] data = Base64.getDecoder().decode(b64);
+                        ImageIcon icon = new ImageIcon(data);
+                        Image rawImg = icon.getImage();
+                        userAvatars.put(user, rawImg);
+
+                        if (user.equals(username)) {
+                            ownAvatarImage = rawImg;
+                            if (headerAvatar != null) {
                                 Image scaled = rawImg.getScaledInstance(50, 50, Image.SCALE_SMOOTH);
                                 headerAvatar.setIcon(new ImageIcon(scaled));
-                             }
-                         }
-                         
-                         // If we are in call with this user, update call window
-                         if (inCall && callWindow != null) {
-                              callWindow.setPartnerAvatar(rawImg);
-                         }
-                         
-                         // If this is the current private chat partner, update large avatar
-                         if (isPrivateMode && user.equals(currentChannel) && partnerAvatarLabel != null) {
-                             Image scaled = rawImg.getScaledInstance(80, 80, Image.SCALE_SMOOTH);
-                             partnerAvatarLabel.setIcon(new ImageIcon(scaled));
-                         }
+                            }
+                        }
 
-                         // Trigger repaint of lists
-                         if (userList != null) userList.repaint();
-                         if (friendsList != null) friendsList.repaint();
-                     } catch (Exception e) {}
+                        // If we are in call with this user, update call window
+                        if (inCall && callWindow != null) {
+                            callWindow.setPartnerAvatar(rawImg);
+                        }
+
+                        // If this is the current private chat partner, update large avatar
+                        if (isPrivateMode && user.equals(currentChannel) && partnerAvatarLabel != null) {
+                            Image scaled = rawImg.getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+                            partnerAvatarLabel.setIcon(new ImageIcon(scaled));
+                        }
+
+                        // Trigger repaint of lists
+                        if (userList != null)
+                            userList.repaint();
+                        if (friendsList != null)
+                            friendsList.repaint();
+                    } catch (Exception e) {
+                    }
                 }
                 return;
             }
@@ -1722,47 +1735,51 @@ public class ChatGUI extends JFrame implements MessageListener {
                 if (parts.length >= 3) {
                     String fileId = parts[1];
                     String fileName = parts[2];
-                    
-                    String html = "<div style='background-color:#eef; border:1px solid #ccf; padding:5px; margin:5px;'>" +
-                                  "<b>Fichier partagé : </b>" + fileName + "<br>" +
-                                  "<a href='download:" + fileId + "'>Cliquez ici pour télécharger</a>" +
-                                  "</div>";
-                                  
-                    StyledDocument doc = chatArea.getStyledDocument(); // Assume current channel context for simplicity/broadcast
+
+                    String html = "<div style='background-color:#eef; border:1px solid #ccf; padding:5px; margin:5px;'>"
+                            +
+                            "<b>Fichier partagé : </b>" + fileName + "<br>" +
+                            "<a href='download:" + fileId + "'>Cliquez ici pour télécharger</a>" +
+                            "</div>";
+
+                    StyledDocument doc = chatArea.getStyledDocument(); // Assume current channel context for
+                                                                       // simplicity/broadcast
                     try {
-                        kit.insertHTML((HTMLDocument)doc, doc.getLength(), html, 0, 0, null);
+                        kit.insertHTML((HTMLDocument) doc, doc.getLength(), html, 0, 0, null);
                         scrollToBottom();
-                    } catch (Exception e) {}
+                    } catch (Exception e) {
+                    }
                 }
                 return;
             }
-            
+
             if (message.startsWith("FILEDOWNLOAD ")) {
-                 String[] parts = message.split(" ", 3);
-                 if (parts.length >= 3) {
-                     String fileId = parts[1];
-                     String b64 = parts[2];
-                     
-                     JFileChooser saver = new JFileChooser();
-                     saver.setSelectedFile(new File(fileId)); // Suggest ID as name
-                     int res = saver.showSaveDialog(this);
-                     if (res == JFileChooser.APPROVE_OPTION) {
-                         try {
-                             byte[] data = Base64.getDecoder().decode(b64);
-                             Files.write(saver.getSelectedFile().toPath(), data);
-                             JOptionPane.showMessageDialog(this, "Fichier enregistré avec succès !");
-                         } catch (Exception e) {
-                             JOptionPane.showMessageDialog(this, "Erreur lors de l'enregistrement : " + e.getMessage());
-                         }
-                     }
-                 }
-                 return;
+                String[] parts = message.split(" ", 3);
+                if (parts.length >= 3) {
+                    String fileId = parts[1];
+                    String b64 = parts[2];
+
+                    JFileChooser saver = new JFileChooser();
+                    saver.setSelectedFile(new File(fileId)); // Suggest ID as name
+                    int res = saver.showSaveDialog(this);
+                    if (res == JFileChooser.APPROVE_OPTION) {
+                        try {
+                            byte[] data = Base64.getDecoder().decode(b64);
+                            Files.write(saver.getSelectedFile().toPath(), data);
+                            JOptionPane.showMessageDialog(this, "Fichier enregistré avec succès !");
+                        } catch (Exception e) {
+                            JOptionPane.showMessageDialog(this, "Erreur lors de l'enregistrement : " + e.getMessage());
+                        }
+                    }
+                }
+                return;
             }
 
             if (message.startsWith("CALL_INCOMING ")) {
                 String caller = message.substring("CALL_INCOMING ".length());
                 // Play ringtone?
-                int resp = JOptionPane.showConfirmDialog(this, "Appel entrant de " + caller + ". Accepter ?", "Appel Entrant", JOptionPane.YES_NO_OPTION);
+                int resp = JOptionPane.showConfirmDialog(this, "Appel entrant de " + caller + ". Accepter ?",
+                        "Appel Entrant", JOptionPane.YES_NO_OPTION);
                 if (resp == JOptionPane.YES_OPTION) {
                     client.sendMessage("/accept " + caller);
                     startCall(caller);
@@ -1771,14 +1788,14 @@ public class ChatGUI extends JFrame implements MessageListener {
                 }
                 return;
             }
-            
+
             if (message.startsWith("CALL_ACCEPTED ")) {
                 String partner = message.substring("CALL_ACCEPTED ".length());
                 appendToChat("Appel accepté par " + partner + ". Connexion Audio...", Color.GREEN);
                 startCall(partner);
                 return;
             }
-            
+
             if (message.startsWith("CALL_DENIED ")) {
                 appendToChat("Appel refusé.", Color.RED);
                 // Reset UI state if needed
@@ -1801,58 +1818,60 @@ public class ChatGUI extends JFrame implements MessageListener {
     private CallWindow callWindow;
 
     private void startCall(String partner) {
-        if (inCall) return;
+        if (inCall)
+            return;
         inCall = true;
         // Start Audio Client on Port (Server Port + 1 usually)
-        
+
         audioClient = new AudioClient(serverHost, serverPort + 1, username);
         audioClient.startCall();
-        
+
         // Open Call Window
         SwingUtilities.invokeLater(() -> {
-            callWindow = new CallWindow(partner, 
-                e -> {
-                    // Hangup action
-                    client.sendMessage("/hangup");
-                    endCall();
-                },
-                e -> {
-                    // Screen Share action
-                    if (videoClient != null) {
-                        if (videoClient.isSendingScreen()) {
-                            videoClient.stopScreenShare();
-                            callWindow.clearVideo();
-                            appendToChat("Partage d'écran désactivé.", Color.BLUE);
-                        } else {
-                            videoClient.startScreenShare();
-                            appendToChat("Partage d'écran activé.", Color.BLUE);
+            callWindow = new CallWindow(partner,
+                    e -> {
+                        // Hangup action
+                        client.sendMessage("/hangup");
+                        endCall();
+                    },
+                    e -> {
+                        // Screen Share action
+                        if (videoClient != null) {
+                            if (videoClient.isSendingScreen()) {
+                                videoClient.stopScreenShare();
+                                callWindow.clearVideo();
+                                appendToChat("Partage d'écran désactivé.", Color.BLUE);
+                            } else {
+                                videoClient.startScreenShare();
+                                appendToChat("Partage d'écran activé.", Color.BLUE);
+                            }
                         }
-                    }
-                },
-                e -> {
-                    // Camera action
-                    // TODO: Implement Camera
-                    JOptionPane.showMessageDialog(callWindow, "Aucune caméra détectée (Bibliothèque manquante).", "Erreur Caméra", JOptionPane.WARNING_MESSAGE);
-                }
-            );
-            
+                    },
+                    e -> {
+                        // Camera action
+                        // TODO: Implement Camera
+                        JOptionPane.showMessageDialog(callWindow, "Aucune caméra détectée (Bibliothèque manquante).",
+                                "Erreur Caméra", JOptionPane.WARNING_MESSAGE);
+                    });
+
             // Set Avatar if we have it
             if (userAvatars.containsKey(partner)) {
                 callWindow.setPartnerAvatar(userAvatars.get(partner));
             } else {
                 client.sendMessage("/getavatar " + partner);
             }
-            
+
             // Start Video Client (Port + 2)
             videoClient = new fr.unilasalle.chat.video.VideoClient(serverHost, serverPort + 2, username, img -> {
-                if (callWindow != null) callWindow.updateVideo(img);
+                if (callWindow != null)
+                    callWindow.updateVideo(img);
             });
             videoClient.start();
         });
-        
+
         appendToChat("Appel vocal actif.", Color.BLUE);
     }
-    
+
     private void endCall() {
         if (audioClient != null) {
             audioClient.stopCall();
@@ -1916,11 +1935,14 @@ public class ChatGUI extends JFrame implements MessageListener {
                 String name = data[0];
                 String status = data.length > 1 ? data[1] : "offline";
                 String msg = data.length > 2 ? data[2] : "";
-                
-                if (!status.equals("offline"))
+
+                if (status.equals("pending")) {
+                    pending.add(new Friend(name, "pending", msg));
+                } else if (!status.equals("offline")) {
                     online.add(new Friend(name, status, msg));
-                else
+                } else {
                     offline.add(new Friend(name, "offline", msg));
+                }
             }
         }
 
@@ -1931,7 +1953,7 @@ public class ChatGUI extends JFrame implements MessageListener {
             friendsListModel.clear();
 
             if (!pending.isEmpty()) {
-                friendsListModel.addElement("Demandes (" + pending.size() + ")");
+                friendsListModel.addElement("En attente (" + pending.size() + ")");
                 for (Friend f : pending)
                     friendsListModel.addElement(f);
             }
@@ -1952,7 +1974,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
                 boolean cellHasFocus) {
-            
+
             // Use super to set up basic properties (bg, fg, font, selection)
             JLabel lbl = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
 
@@ -1971,7 +1993,7 @@ public class ChatGUI extends JFrame implements MessageListener {
             if (value instanceof Friend) {
                 Friend f = (Friend) value;
                 lbl.setBorder(new EmptyBorder(2, 5, 2, 5)); // Reduced indent as we use icon
-                
+
                 // Avatar icon
                 if (userAvatars.containsKey(f.name)) {
                     Image img = userAvatars.get(f.name).getScaledInstance(20, 20, Image.SCALE_SMOOTH);
@@ -1986,7 +2008,7 @@ public class ChatGUI extends JFrame implements MessageListener {
 
                 String displayStatus = "";
                 Color c2 = Color.GRAY;
-                
+
                 if (f.status.equals("online")) {
                     displayStatus = "(En ligne)";
                     c2 = new Color(0, 128, 0);
@@ -1996,12 +2018,15 @@ public class ChatGUI extends JFrame implements MessageListener {
                 } else if (f.status.equals("away")) {
                     displayStatus = "(Absent)";
                     c2 = new Color(220, 150, 0); // Orange
+                } else if (f.status.equals("pending")) {
+                    displayStatus = "(En attente)";
+                    c2 = new Color(100, 100, 255); // Blue-ish
                 }
-                
+
                 if (!f.status.equals("offline")) {
-                    lbl.setForeground(c2); 
+                    lbl.setForeground(c2);
                     String txt = "<html><b>" + f.name + "</b> " + displayStatus;
-                    // Sanitize potential HTML in status message or name? 
+                    // Sanitize potential HTML in status message or name?
                     // Assume name is safe-ish, but message might have chars.
                     // For now, keep it simple but functional.
                     if (f.statusMessage != null && !f.statusMessage.isEmpty()) {
@@ -2016,7 +2041,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                 }
                 return lbl;
             }
-            
+
             return lbl;
         }
     }
