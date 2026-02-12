@@ -20,6 +20,7 @@ public class SoundManager {
         loadSound("clavierFull.wav");
         loadSound("messageSent.wav");
         loadSound("messageReceived.wav");
+        loadSound("wizz.wav");
     }
 
     private void loadSound(String filename) {
@@ -29,14 +30,14 @@ public class SoundManager {
                 System.err.println("Sound file not found: " + file.getAbsolutePath());
                 return;
             }
-            
+
             AudioInputStream audioIn = AudioSystem.getAudioInputStream(file);
             DataLine.Info info = new DataLine.Info(Clip.class, audioIn.getFormat());
             Clip clip = (Clip) AudioSystem.getLine(info);
-            
+
             clip.open(audioIn);
             soundCache.put(filename, clip);
-            
+
         } catch (LineUnavailableException | IOException | UnsupportedAudioFileException e) {
             System.err.println("Error loading sound " + filename + ": " + e.getMessage());
             e.printStackTrace();
@@ -60,9 +61,14 @@ public class SoundManager {
         playCachedSound("messageReceived.wav");
     }
 
+    public void playWizz() {
+        playCachedSound("wizz.wav");
+    }
+
     private synchronized void startTypingSound() {
         Clip clip = soundCache.get("clavierFull.wav");
-        if (clip == null) return;
+        if (clip == null)
+            return;
 
         // Reset the inactivity timer
         if (currentStopTask != null) {

@@ -653,6 +653,28 @@ public class ChatGUI extends JFrame implements MessageListener {
         toolbar.add(bgBtn);
         toolbar.add(resetBtn);
 
+        JButton wizzBtn = new JButton("Wizz!");
+        wizzBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        wizzBtn.setForeground(Color.RED);
+        wizzBtn.setToolTipText("Envoyer un Wizz !");
+        styleToolbarButton(wizzBtn);
+        wizzBtn.addActionListener(e -> {
+            client.sendMessage("/wizz");
+        });
+        toolbar.add(wizzBtn);
+
+        JButton searchBtn = new JButton("?");
+        searchBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        searchBtn.setToolTipText("Rechercher dans les messages");
+        styleToolbarButton(searchBtn);
+        searchBtn.addActionListener(e -> {
+            String q = JOptionPane.showInputDialog(this, "Rechercher :", "Recherche", JOptionPane.QUESTION_MESSAGE);
+            if (q != null && !q.trim().isEmpty()) {
+                client.sendMessage("/search " + q);
+            }
+        });
+        toolbar.add(searchBtn);
+
         JButton fileBtn = new JButton("F");
         fileBtn.setFont(new Font("Arial", Font.BOLD, 12));
         fileBtn.setToolTipText("Envoyer un fichier");
@@ -1223,6 +1245,12 @@ public class ChatGUI extends JFrame implements MessageListener {
 
     private void appendMessageToDoc(HTMLDocument doc, String msg) {
         try {
+            if (msg.startsWith("RAW_HTML:")) {
+                kit.insertHTML(doc, doc.getLength(), msg.substring("RAW_HTML:".length()), 0, 0, null);
+                scrollToBottom();
+                return;
+            }
+
             StringBuilder html = new StringBuilder();
 
             // Handle private messages specially
@@ -1488,12 +1516,43 @@ public class ChatGUI extends JFrame implements MessageListener {
                     // For history, content usually has [timestamp] [user]: ...
                     // Just use content as is if it looks formatted, else format it
                     String formatted = content;
+
                     if (content.startsWith("HISTORY:")) {
-                        content = content.substring("HISTORY:".length());
-                        if (content.matches("^\\[\\d{2}:\\d{2}:\\d{2}\\] \\[.+?\\]: .+")) {
-                            formatted = content;
+                        String raw = content.substring("HISTORY:".length());
+                        // raw: "[12/02/26 08:53:44] [Jeomin]: WIZZ Jeomin"
+
+                        // Parse regex: [timestamp] [sender]: msg
+                        java.util.regex.Pattern p = java.util.regex.Pattern.compile("^\\[(.*?)\\] \\[(.*?)\\]: (.*)$");
+                        java.util.regex.Matcher m = p.matcher(raw);
+                        if (m.find()) {
+                            String ts = m.group(1);
+                            String msgSender = m.group(2); // Should match sender in []
+                            String msgContent = m.group(3);
+
+                            if (msgContent.startsWith("WIZZ ")) {
+                                String wizzHtml;
+                                if (msgSender.equals(username)) {
+                                    wizzHtml = "<div style='color:#FF0000;font-weight:bold;font-size:14px;text-align:center;'>--- Vous avez envoyé un Wizz ! ---</div>";
+                                } else {
+                                    wizzHtml = "<div style='color:#FF0000;font-weight:bold;font-size:14px;text-align:center;'>--- "
+                                            + msgSender + " vous a envoyé un Wizz ! ---</div>";
+                                }
+                                // Include timestamp as requested by user
+                                formatted = "RAW_HTML:<div style='color:gray;font-size:10px;text-align:left;'>" + ts
+                                        + "</div>" + wizzHtml;
+                            } else {
+                                formatted = raw;
+                            }
                         } else {
-                            formatted = content;
+                            formatted = raw;
+                        }
+                    } else if (content.startsWith("WIZZ ")) {
+                        String wizzSender = content.substring("WIZZ ".length());
+                        if (wizzSender.equals(username)) {
+                            formatted = "RAW_HTML:<div style='color:#FF0000;font-weight:bold;font-size:14px;text-align:center;'>--- Vous avez envoyé un Wizz ! ---</div>";
+                        } else {
+                            formatted = "RAW_HTML:<div style='color:#FF0000;font-weight:bold;font-size:14px;text-align:center;'>--- "
+                                    + wizzSender + " vous a envoyé un Wizz ! ---</div>";
                         }
                     } else {
                         // Fallback for standard PRIVMSG if any
@@ -1595,9 +1654,61 @@ public class ChatGUI extends JFrame implements MessageListener {
                         return;
                     }
 
-                    if (!channelDocs.containsKey(targetChannel)) {
+                    // Resolve the correct document key (handle private chat mapping)
+                    String docKey = targetChannel;
+                    if (targetChannel.startsWith("!PRIVATE_")) {
+                        String[] p = targetChannel.substring(9).split("_");
+                        if (p.length >= 2) {
+                            if (p[0].equals(username))
+                                docKey = "PRIV_" + p[1];
+                            else
+                                docKey = "PRIV_" + p[0];
+                        }
+                    }
+
+                    if (content.startsWith("WIZZ ")) {
+                        String sender = content.substring("WIZZ ".length());
+                        // GLOBAL EFFECT: Always play sound and shake
+                        soundManager.playWizz();
+                        shakeWindow();
+
+                        String displayHtml;
+                        if (sender.equals(username)) {
+                            displayHtml = "RAW_HTML:<div style='color:#FF0000;font-weight:bold;font-size:14px;text-align:center;'>--- Vous avez envoyé un Wizz ! ---</div>";
+                        } else {
+                            displayHtml = "RAW_HTML:<div style='color:#FF0000;font-weight:bold;font-size:14px;text-align:center;'>--- "
+                                    + sender + " vous a envoyé un Wizz ! ---</div>";
+                        }
+
+                        boolean match = false;
+                        if (targetChannel.equals(currentChannel)) {
+                            match = true;
+                        } else if (isPrivateMode
+                                && targetChannel.equals(getPrivateRoomName(username, currentChannel))) {
+                            match = true;
+                        }
+
+                        System.out.println("DEBUG WIZZ: target=" + targetChannel + ", current=" + currentChannel
+                                + ", isPrivate=" + isPrivateMode + ", match=" + match);
+
+                        if (match) {
+                            appendToChat(displayHtml, null); // Color ignored for raw HTML
+                        } else {
+                            // Append to background buffer using RESOLVED key
+                            if (!channelDocs.containsKey(docKey)) {
+                                channelDocs.put(docKey, (HTMLDocument) chatArea.getEditorKit().createDefaultDocument());
+                            }
+                            StyledDocument doc = channelDocs.get(docKey);
+                            if (doc instanceof HTMLDocument) {
+                                appendMessageToDoc((HTMLDocument) doc, displayHtml);
+                            }
+                        }
+                        return;
+                    }
+
+                    if (!channelDocs.containsKey(docKey)) {
                         // Create HTML doc!
-                        channelDocs.put(targetChannel, (HTMLDocument) chatArea.getEditorKit().createDefaultDocument());
+                        channelDocs.put(docKey, (HTMLDocument) chatArea.getEditorKit().createDefaultDocument());
                     }
                     if (targetChannel.equals(currentChannel)) {
                         if (content.startsWith("HISTORY:")) {
@@ -1615,21 +1726,17 @@ public class ChatGUI extends JFrame implements MessageListener {
                         if (content.startsWith("HISTORY:")) {
                             try {
                                 String clean = content.substring("HISTORY:".length());
-                                StyledDocument doc = channelDocs.get(targetChannel);
+                                StyledDocument doc = channelDocs.get(docKey);
                                 if (doc instanceof HTMLDocument) {
                                     appendMessageToDoc((HTMLDocument) doc, clean);
                                 }
                             } catch (Exception e) {
                             }
                         } else {
-                            StyledDocument doc = channelDocs.get(targetChannel);
+                            StyledDocument doc = channelDocs.get(docKey);
                             if (doc instanceof HTMLDocument) {
                                 appendMessageToDoc((HTMLDocument) doc, content);
-                                // Play sound if it's not me sending the message (basic check)
-                                // The server sends back my own messages too, but usually formatted.
-                                // If I want to avoid double sound (sent + received), I check sender name inside
-                                // content?
-                                // Content format: [timestamp] [User]: msg...
+                                // Play sound if it's not me sending the message
                                 if (!content.contains("[" + username + "]:")) {
                                     soundManager.playMessageReceived();
                                 }
@@ -2023,6 +2130,27 @@ public class ChatGUI extends JFrame implements MessageListener {
             friendsList.repaint(); // Force repaint just in case
             if (isPrivateMode) updateMoodLabels(currentChannel);
         });
+    }
+
+    private void shakeWindow() {
+        final Point original = getLocation();
+        final int shakeAmplitude = 10;
+        final int shakeDuration = 500; // ms
+        final long startTime = System.currentTimeMillis();
+
+        Timer shakeTimer = new Timer(50, null);
+        shakeTimer.addActionListener(e -> {
+            long elapsed = System.currentTimeMillis() - startTime;
+            if (elapsed > shakeDuration) {
+                setLocation(original);
+                shakeTimer.stop();
+            } else {
+                int xOffset = (int) (Math.random() * shakeAmplitude * 2 - shakeAmplitude);
+                int yOffset = (int) (Math.random() * shakeAmplitude * 2 - shakeAmplitude);
+                setLocation(original.x + xOffset, original.y + yOffset);
+            }
+        });
+        shakeTimer.start();
     }
 
     private class FriendListRenderer extends DefaultListCellRenderer {
