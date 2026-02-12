@@ -663,18 +663,6 @@ public class ChatGUI extends JFrame implements MessageListener {
         });
         toolbar.add(wizzBtn);
 
-        JButton searchBtn = new JButton("?");
-        searchBtn.setFont(new Font("Arial", Font.BOLD, 12));
-        searchBtn.setToolTipText("Rechercher dans les messages");
-        styleToolbarButton(searchBtn);
-        searchBtn.addActionListener(e -> {
-            String q = JOptionPane.showInputDialog(this, "Rechercher :", "Recherche", JOptionPane.QUESTION_MESSAGE);
-            if (q != null && !q.trim().isEmpty()) {
-                client.sendMessage("/search " + q);
-            }
-        });
-        toolbar.add(searchBtn);
-
         JButton fileBtn = new JButton("F");
         fileBtn.setFont(new Font("Arial", Font.BOLD, 12));
         fileBtn.setToolTipText("Envoyer un fichier");
