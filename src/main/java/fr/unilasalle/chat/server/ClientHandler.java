@@ -91,13 +91,15 @@ public class ClientHandler extends Thread {
                         if (server.addUserName(parts[1])) {
                             this.userName = parts[1];
                             this.avatar = server.getDbService().getAvatar(this.userName); // Load avatar
+                            this.statusMessage = server.getDbService().getStatusMessage(this.userName); // Load status message
                             
                             server.broadcastAllUsers(); // Update global list now that name is set
                             System.out.println("DEBUG: triggering friend status update for " + this.userName);
                             server.broadcastFriendStatusUpdate(this.userName);
                             
                             // Send login success with avatar info?
-                            writer.println("LOGIN_SUCCESS " + this.userName + " " + (this.avatar != null ? this.avatar : "default.png"));
+                            String b64Msg = Base64.getEncoder().encodeToString((this.statusMessage != null ? this.statusMessage : "").getBytes());
+                            writer.println("LOGIN_SUCCESS " + this.userName + " " + (this.avatar != null ? this.avatar : "default.png") + " " + b64Msg);
                             writer.println("Welcome " + this.userName);
                             writer.println("You are in channel: " + channel);
 
@@ -373,6 +375,7 @@ public class ClientHandler extends Thread {
                     if (parts.length >= 3) raw += " " + parts[2];
                     
                     this.statusMessage = raw.replace(",", " ").replace(":", " ");
+                    server.getDbService().updateStatusMessage(this.userName, this.statusMessage);
                 }
                 server.broadcastFriendStatusUpdate(this.userName);
                 server.broadcastUserList(this.channel);

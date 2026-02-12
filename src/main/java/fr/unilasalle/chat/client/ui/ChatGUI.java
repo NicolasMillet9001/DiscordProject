@@ -74,6 +74,9 @@ public class ChatGUI extends JFrame implements MessageListener {
     private JPanel inputPanel;
     private JPanel topMsnHeader;
     private JLabel partnerAvatarLabelFrame; // New avatar label in sidebar
+    private JLabel partnerMoodLabel;
+    private JLabel myMoodLabel;
+    private JButton sidebarCallBtn;
 
     private static class Friend {
         String name;
@@ -473,6 +476,13 @@ public class ChatGUI extends JFrame implements MessageListener {
         if (ownAvatarImage != null) {
             myAvatarLabel.setIcon(new ImageIcon(ownAvatarImage.getScaledInstance(96, 96, Image.SCALE_SMOOTH)));
         }
+        
+        // Populate Mood Labels
+        updateMoodLabels(friendName);
+
+        // Reset sidebar call button
+        sidebarCallBtn.setText("Appeler");
+        sidebarCallBtn.setForeground(Color.BLACK);
 
         String roomName = getPrivateRoomName(username, friendName);
         client.sendMessage("/join " + roomName);
@@ -491,6 +501,19 @@ public class ChatGUI extends JFrame implements MessageListener {
         chatArea.setDocument(doc);
         scrollToBottom();
         channelList.clearSelection();
+    }
+
+    private void updateMoodLabels(String friendName) {
+        String myStatus = "online"; // Could be dynamically fetched
+        String myMsg = ownStatusMessage.isEmpty() ? "Pas de message perso" : ownStatusMessage;
+        myMoodLabel.setText("<html><center><b>" + username + "</b> ("+myStatus+")<br><font color='gray'>" + myMsg + "</font></center></html>");
+
+        if (friendName != null) {
+            String pStatus = channelUserStatus.getOrDefault(friendName, "offline");
+            String pMsg = channelUserMsg.getOrDefault(friendName, "");
+            if (pMsg.isEmpty()) pMsg = "Pas de message perso";
+            partnerMoodLabel.setText("<html><center><b>" + friendName + "</b> ("+pStatus+")<br><font color='gray'>" + pMsg + "</font></center></html>");
+        }
     }
 
     private void promptCreateChannel() {
@@ -630,18 +653,6 @@ public class ChatGUI extends JFrame implements MessageListener {
         toolbar.add(bgBtn);
         toolbar.add(resetBtn);
 
-        JButton searchBtn = new JButton("?");
-        searchBtn.setFont(new Font("Arial", Font.BOLD, 12));
-        searchBtn.setToolTipText("Rechercher dans les messages");
-        styleToolbarButton(searchBtn);
-        searchBtn.addActionListener(e -> {
-            String q = JOptionPane.showInputDialog(this, "Rechercher :", "Recherche", JOptionPane.QUESTION_MESSAGE);
-            if (q != null && !q.trim().isEmpty()) {
-                client.sendMessage("/search " + q);
-            }
-        });
-        toolbar.add(searchBtn);
-
         JButton fileBtn = new JButton("F");
         fileBtn.setFont(new Font("Arial", Font.BOLD, 12));
         fileBtn.setToolTipText("Envoyer un fichier");
@@ -664,29 +675,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         });
         toolbar.add(fileBtn);
 
-        JButton callBtn = new JButton("Tel");
-        callBtn.setFont(new Font("Arial", Font.BOLD, 12));
-        callBtn.setToolTipText("Appeler un utilisateur (Privé)");
-        styleToolbarButton(callBtn);
-        callBtn.setForeground(new Color(0, 128, 0));
-        callBtn.addActionListener(e -> {
-            if (inCall) {
-                client.sendMessage("/hangup");
-                endCall();
-                callBtn.setText("Tel");
-                callBtn.setForeground(new Color(0, 128, 0));
-            } else {
-                String target = null;
-                if (isPrivateMode) target = currentChannel;
-                if (target == null) target = JOptionPane.showInputDialog(this, "Appeler qui ?");
-                if (target != null && !target.trim().isEmpty()) {
-                    client.sendMessage("/call " + target);
-                    callBtn.setText("Fin");
-                    callBtn.setForeground(Color.RED);
-                }
-            }
-        });
-        toolbar.add(callBtn);
+        toolbar.add(fileBtn);
 
         inputPanel.add(toolbar, BorderLayout.NORTH);
 
@@ -789,21 +778,56 @@ public class ChatGUI extends JFrame implements MessageListener {
         userPanel.add(new JScrollPane(userList), BorderLayout.CENTER);
 
         // Card 2: Avatar Sidebar (Private)
-        avatarSidebar = new JPanel(new BorderLayout());
+        avatarSidebar = new JPanel();
+        avatarSidebar.setLayout(new BoxLayout(avatarSidebar, BoxLayout.Y_AXIS));
         avatarSidebar.setBackground(MsnTheme.SIDEBAR);
+        avatarSidebar.setBorder(new EmptyBorder(10, 5, 10, 5));
         
+        // Partner Section
         JPanel pTop = new JPanel(new FlowLayout(FlowLayout.CENTER));
         pTop.setOpaque(false);
         partnerAvatarLabelFrame = new JLabel();
         pTop.add(new MsnPhotoFrame(partnerAvatarLabelFrame, 96));
         
+        partnerMoodLabel = new JLabel("<html><center><b>...</b><br><font color='gray'>...</font></center></html>");
+        partnerMoodLabel.setFont(new Font("Tahoma", Font.PLAIN, 11));
+        partnerMoodLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        partnerMoodLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        
+        sidebarCallBtn = new WindowsXPButton("Appeler");
+        sidebarCallBtn.setMaximumSize(new Dimension(100, 30));
+        sidebarCallBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        sidebarCallBtn.addActionListener(e -> {
+            if (inCall) {
+                client.sendMessage("/hangup");
+                endCall();
+            } else {
+                if (isPrivateMode && currentChannel != null) {
+                    client.sendMessage("/call " + currentChannel);
+                    sidebarCallBtn.setText("Fin d'appel");
+                    sidebarCallBtn.setForeground(Color.RED);
+                }
+            }
+        });
+
+        // My Section
         JPanel pBottom = new JPanel(new FlowLayout(FlowLayout.CENTER));
         pBottom.setOpaque(false);
         myAvatarLabel = new JLabel();
         pBottom.add(new MsnPhotoFrame(myAvatarLabel, 96));
         
-        avatarSidebar.add(pTop, BorderLayout.NORTH);
-        avatarSidebar.add(pBottom, BorderLayout.SOUTH);
+        myMoodLabel = new JLabel("<html><center><b>" + username + "</b><br><font color='gray'>...</font></center></html>");
+        myMoodLabel.setFont(new Font("Tahoma", Font.PLAIN, 11));
+        myMoodLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        myMoodLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+        avatarSidebar.add(pTop);
+        avatarSidebar.add(partnerMoodLabel);
+        avatarSidebar.add(Box.createVerticalStrut(5));
+        avatarSidebar.add(sidebarCallBtn);
+        avatarSidebar.add(Box.createVerticalGlue());
+        avatarSidebar.add(myMoodLabel);
+        avatarSidebar.add(pBottom);
 
         rightSidebarContainer.add(userPanel, "LIST");
         rightSidebarContainer.add(avatarSidebar, "AVATARS");
@@ -926,7 +950,12 @@ public class ChatGUI extends JFrame implements MessageListener {
 
             soundManager.playMessageSent();
 
-            if (!text.startsWith("/")) {
+            if (text.startsWith("/setmsg ")) {
+            ownStatusMessage = text.substring(8);
+            if (isPrivateMode) updateMoodLabels(currentChannel);
+        }
+
+        if (!text.startsWith("/")) {
                 // appendToChat("[" + username + "]: " + payload.toString(),
                 // getUniqueColor(username));
             }
@@ -1360,12 +1389,15 @@ public class ChatGUI extends JFrame implements MessageListener {
 
             if (message.startsWith("LOGIN_SUCCESS")) {
                 appendToChat("Système : Connexion réussie !", Color.GRAY);
-                // Check if avatar info is present
                 String[] parts = message.split(" ");
                 if (parts.length >= 3 && !parts[2].equals("null")) {
-                    // Request avatar data to display it
-                    // Or wait, server just sent the filename. Client doesn't have the file yet.
                     client.sendMessage("/getavatar " + username);
+                }
+                if (parts.length >= 4) {
+                    try {
+                        byte[] decoded = Base64.getDecoder().decode(parts[3]);
+                        ownStatusMessage = new String(decoded);
+                    } catch (Exception e) {}
                 }
                 return;
             }
@@ -1962,6 +1994,10 @@ public class ChatGUI extends JFrame implements MessageListener {
                 String status = data.length > 1 ? data[1] : "offline";
                 String msg = data.length > 2 ? data[2] : "";
 
+                // Update maps for real-time mood/status tracking
+                channelUserStatus.put(name, status);
+                channelUserMsg.put(name, msg);
+
                 if (status.equals("pending")) {
                     pending.add(new Friend(name, "pending", msg));
                 } else if (!status.equals("offline")) {
@@ -1993,6 +2029,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                 friendsListModel.addElement(f);
 
             friendsList.repaint(); // Force repaint just in case
+            if (isPrivateMode) updateMoodLabels(currentChannel);
         });
     }
 
