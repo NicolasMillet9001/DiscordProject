@@ -101,22 +101,18 @@ public class ClientHandler extends Thread {
                             writer.println("Welcome " + this.userName);
                             writer.println("You are in channel: " + channel);
 
-                            // Send History
+                            // Send history
                             java.util.List<String> history = server.getDbService().getHistory(channel, 50);
                             for (String msg : history) {
-                                // Protocol: CHANMSG channel content
                                 writer.println("CHANMSG " + channel + " " + msg);
                             }
 
-                            // Send channel list and user list directly to this client
-                            writer.println("CHANNELLIST " + server.getChannelList());
-                            writer.println("USERLIST " + channel + " " + server.getUsersInChannel(channel));
                             writer.println("ALLUSERS " + String.join(",", server.getUserNames()));
                             server.sendFriendListUpdate(this.userName);
 
                             // Broadcast updated user list to all users in the channel
                             server.broadcastUserList(channel);
-                            writer.println("CHANNELLIST " + server.getChannelList()); // Send initial channel list
+                            server.broadcastChannelList(); // This sends CHANNELLIST to everyone
 
                             // Send Pending Friend Requests
                             java.util.List<String> pending = server.getDbService().getPendingRequests(this.userName);
@@ -201,11 +197,16 @@ public class ClientHandler extends Thread {
 
                     server.broadcastUserList(oldChannel); // Remove from old
                     server.broadcastUserList(newChannel); // Add to new
-
-                    // Send History of new channel
-                    java.util.List<String> history = server.getDbService().getHistory(newChannel, 50);
+                }
+                break;
+            case "/history":
+                if (parts.length < 2) {
+                    sendMessage("Syntax: /history <channel>");
+                } else {
+                    String targetChan = parts[1];
+                    java.util.List<String> history = server.getDbService().getHistory(targetChan, 50);
                     for (String msg : history) {
-                        writer.println("CHANMSG " + newChannel + " " + msg);
+                        writer.println("CHANMSG " + targetChan + " " + msg);
                     }
                 }
                 break;

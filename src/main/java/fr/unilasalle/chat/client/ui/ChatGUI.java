@@ -421,6 +421,7 @@ public class ChatGUI extends JFrame implements MessageListener {
         if (doc == null) {
             doc = (StyledDocument) kit.createDefaultDocument();
             channelDocs.put(newChannel, doc);
+            client.sendMessage("/history " + newChannel);
         }
         chatArea.setDocument(doc);
         scrollToBottom();
