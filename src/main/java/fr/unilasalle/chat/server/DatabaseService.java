@@ -43,6 +43,12 @@ public class DatabaseService {
             } catch (SQLException e) {
                 // Ignore if exists
             }
+            // Migration: Add status_message column if not exists
+            try {
+                stmt.execute("ALTER TABLE users ADD COLUMN status_message TEXT;");
+            } catch (SQLException e) {
+                // Ignore if exists
+            }
         }
     }
     
@@ -71,8 +77,33 @@ public class DatabaseService {
         return null;
     }
 
+    public void updateStatusMessage(String username, String msg) {
+        String sql = "UPDATE users SET status_message = ? WHERE username = ?";
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, msg);
+            pstmt.setString(2, username);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public String getStatusMessage(String username) {
+        String sql = "SELECT status_message FROM users WHERE username = ?";
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) return rs.getString("status_message");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return "";
+    }
+
     public synchronized boolean register(String username, String password) {
-        String sql = "INSERT INTO users(username, password) VALUES(?, ?)";
+        String sql = "INSERT INTO users(username, password, avatar) VALUES(?, ?, 'default.png')";
         try (Connection conn = connect();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, username);

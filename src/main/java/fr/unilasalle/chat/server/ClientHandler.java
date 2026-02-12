@@ -89,14 +89,15 @@ public class ClientHandler extends Thread {
                         if (server.addUserName(parts[1])) {
                             this.userName = parts[1];
                             this.avatar = server.getDbService().getAvatar(this.userName); // Load avatar
-
+                            this.statusMessage = server.getDbService().getStatusMessage(this.userName); // Load status message
+                            
                             server.broadcastAllUsers(); // Update global list now that name is set
                             System.out.println("DEBUG: triggering friend status update for " + this.userName);
                             server.broadcastFriendStatusUpdate(this.userName);
 
                             // Send login success with avatar info?
-                            writer.println("LOGIN_SUCCESS " + this.userName + " "
-                                    + (this.avatar != null ? this.avatar : "null"));
+                            String b64Msg = Base64.getEncoder().encodeToString((this.statusMessage != null ? this.statusMessage : "").getBytes());
+                            writer.println("LOGIN_SUCCESS " + this.userName + " " + (this.avatar != null ? this.avatar : "default.png") + " " + b64Msg);
                             writer.println("Welcome " + this.userName);
                             writer.println("You are in channel: " + channel);
 
@@ -377,6 +378,7 @@ public class ClientHandler extends Thread {
                         raw += " " + parts[2];
 
                     this.statusMessage = raw.replace(",", " ").replace(":", " ");
+                    server.getDbService().updateStatusMessage(this.userName, this.statusMessage);
                 }
                 server.broadcastFriendStatusUpdate(this.userName);
                 server.broadcastUserList(this.channel);
@@ -474,15 +476,18 @@ public class ClientHandler extends Thread {
                 } else {
                     String target = parts[1];
                     String av = server.getDbService().getAvatar(target);
-                    if (av != null) {
-                        File f = new File("avatars", av);
-                        if (f.exists()) {
-                            try {
-                                byte[] data = Files.readAllBytes(f.toPath());
-                                String b64 = Base64.getEncoder().encodeToString(data);
-                                sendMessage("AVATAR_DATA " + target + " " + b64);
-                            } catch (Exception e) {
-                            }
+                    if (av == null || av.trim().isEmpty()) av = "default.png";
+                    
+                    File f = new File("avatars", av);
+                    if (!f.exists()) f = new File("avatars", "default.png");
+                    
+                    if (f.exists()) {
+                        try {
+                            byte[] dataBytes = Files.readAllBytes(f.toPath());
+                            String b64 = Base64.getEncoder().encodeToString(dataBytes);
+                            sendMessage("AVATAR_DATA " + target + " " + b64);
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
                     }
                 }

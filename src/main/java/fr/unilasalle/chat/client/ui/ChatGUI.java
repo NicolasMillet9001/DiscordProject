@@ -65,6 +65,19 @@ public class ChatGUI extends JFrame implements MessageListener {
     private String ownStatusMessage = "";
     private Set<String> requestedAvatars = new HashSet<>();
 
+    private JPanel rightSidebarContainer;
+    private JPanel userPanel;
+    private JPanel avatarSidebar;
+    private JLabel myAvatarLabel;
+    private JPanel msnTopActionBar;
+    private CardLayout rightSidebarLayout;
+    private JPanel inputPanel;
+    private JPanel topMsnHeader;
+    private JLabel partnerAvatarLabelFrame; // New avatar label in sidebar
+    private JLabel partnerMoodLabel;
+    private JLabel myMoodLabel;
+    private JButton sidebarCallBtn;
+
     private static class Friend {
         String name;
         String status; // online, busy, away, offline
@@ -157,7 +170,7 @@ public class ChatGUI extends JFrame implements MessageListener {
 
         JLabel avatarLabel = new JLabel();
         avatarLabel.setPreferredSize(new Dimension(50, 50));
-        avatarLabel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        // avatarLabel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
         avatarLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
         avatarLabel.setToolTipText("Cliquez pour changer votre photo");
         avatarLabel.addMouseListener(new MouseAdapter() {
@@ -419,12 +432,11 @@ public class ChatGUI extends JFrame implements MessageListener {
         isPrivateMode = false;
         client.sendMessage("/join " + newChannel);
         currentChannel = newChannel;
-        friendsList.clearSelection(); // Deselect friend
+        friendsList.clearSelection();
 
-        talkingTo.setText("Discussion dans " + newChannel);
-        partnerAvatarLabel.setVisible(false);
+        talkingTo.setText(" À : #" + newChannel);
+        rightSidebarLayout.show(rightSidebarContainer, "LIST");
 
-        // Clear channel users locally while waiting for server update
         channelUsers.clear();
         if (userList != null)
             userList.repaint();
@@ -447,26 +459,35 @@ public class ChatGUI extends JFrame implements MessageListener {
     }
 
     private void switchPrivateChat(String friendName) {
-        currentChannel = friendName; // Effectively treating username as channel ID
+        currentChannel = friendName;
         isPrivateMode = true;
 
-        talkingTo.setText("Discussion privée avec " + friendName);
-        partnerAvatarLabel.setVisible(true);
+        talkingTo.setText(" À : " + friendName);
+        rightSidebarLayout.show(rightSidebarContainer, "AVATARS");
+
+        // Update side avatars
         if (userAvatars.containsKey(friendName)) {
-            Image img = userAvatars.get(friendName).getScaledInstance(80, 80, Image.SCALE_SMOOTH);
-            partnerAvatarLabel.setIcon(new ImageIcon(img));
+            partnerAvatarLabelFrame.setIcon(new ImageIcon(userAvatars.get(friendName).getScaledInstance(96, 96, Image.SCALE_SMOOTH)));
         } else {
-            partnerAvatarLabel.setIcon(null);
+            partnerAvatarLabelFrame.setIcon(null);
             client.sendMessage("/getavatar " + friendName);
         }
+        
+        if (ownAvatarImage != null) {
+            myAvatarLabel.setIcon(new ImageIcon(ownAvatarImage.getScaledInstance(96, 96, Image.SCALE_SMOOTH)));
+        }
+        
+        // Populate Mood Labels
+        updateMoodLabels(friendName);
 
-        // Join the hidden presence room
+        // Reset sidebar call button
+        sidebarCallBtn.setText("Appeler");
+        sidebarCallBtn.setForeground(Color.BLACK);
+
         String roomName = getPrivateRoomName(username, friendName);
         client.sendMessage("/join " + roomName);
 
-        // Highlight only this friend
         channelUsers.clear();
-        // channelUsers.add(friendName); // Waiting for server update instead
         if (userList != null)
             userList.repaint();
 
@@ -474,14 +495,25 @@ public class ChatGUI extends JFrame implements MessageListener {
         if (doc == null) {
             doc = (StyledDocument) kit.createDefaultDocument();
             channelDocs.put("PRIV_" + friendName, doc);
-            // Fetch history only on first load
             client.sendMessage("/privhistory " + friendName);
         }
 
         chatArea.setDocument(doc);
         scrollToBottom();
-        // We might want to clear selection in channelList
         channelList.clearSelection();
+    }
+
+    private void updateMoodLabels(String friendName) {
+        String myStatus = "online"; // Could be dynamically fetched
+        String myMsg = ownStatusMessage.isEmpty() ? "Pas de message perso" : ownStatusMessage;
+        myMoodLabel.setText("<html><center><b>" + username + "</b> ("+myStatus+")<br><font color='gray'>" + myMsg + "</font></center></html>");
+
+        if (friendName != null) {
+            String pStatus = channelUserStatus.getOrDefault(friendName, "offline");
+            String pMsg = channelUserMsg.getOrDefault(friendName, "");
+            if (pMsg.isEmpty()) pMsg = "Pas de message perso";
+            partnerMoodLabel.setText("<html><center><b>" + friendName + "</b> ("+pStatus+")<br><font color='gray'>" + pMsg + "</font></center></html>");
+        }
     }
 
     private void promptCreateChannel() {
@@ -523,69 +555,55 @@ public class ChatGUI extends JFrame implements MessageListener {
     private void createChatArea(JPanel parent) {
         JPanel chatPanel = new JPanel(new BorderLayout());
         chatPanel.setBackground(MsnTheme.BACKGROUND);
-        chatPanel.setBorder(new EmptyBorder(0, 5, 0, 0)); // Gap from sidebar
+        chatPanel.setBorder(new EmptyBorder(0, 5, 0, 0));
 
-        // Chat Header
+        // Center Content
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        centerPanel.setOpaque(false);
+
+        // Chat Header (The blue "À :" bar)
         JPanel chatHeader = new JPanel(new BorderLayout());
-        chatHeader.setBackground(Color.WHITE);
-        chatHeader.setBorder(new MatteBorder(0, 0, 1, 0, MsnTheme.BORDER_COLOR));
+        chatHeader.setBackground(new Color(230, 235, 245));
+        chatHeader.setBorder(new MatteBorder(1, 1, 1, 1, MsnTheme.BORDER_COLOR));
+        chatHeader.setPreferredSize(new Dimension(0, 30));
 
-        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        titlePanel.setOpaque(false);
-
-        partnerAvatarLabel = new JLabel();
-        partnerAvatarLabel.setPreferredSize(new Dimension(80, 80));
-        partnerAvatarLabel.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
-        partnerAvatarLabel.setVisible(false);
-        titlePanel.add(partnerAvatarLabel);
-
-        talkingTo = new JLabel("Discussion dans " + currentChannel);
-        talkingTo.setFont(MsnTheme.FONT_TITLE);
+        talkingTo = new JLabel(" À : " + currentChannel);
+        talkingTo.setFont(MsnTheme.FONT_MAIN);
         talkingTo.setForeground(MsnTheme.TEXT_NORMAL);
-        titlePanel.add(talkingTo);
-
-        chatHeader.add(titlePanel, BorderLayout.WEST);
-        chatPanel.add(chatHeader, BorderLayout.NORTH);
+        chatHeader.add(talkingTo, BorderLayout.WEST);
+        
+        centerPanel.add(chatHeader, BorderLayout.NORTH);
 
         chatArea = new JTextPane();
-        chatArea.setEditorKit(kit); // Use HTML Kit
-        // chatArea.setContentType("text/html"); // Handled by setEditorKit
+        chatArea.setEditorKit(kit);
         chatArea.setEditable(false);
         chatArea.setBackground(Color.WHITE);
-        // Force font style
         chatArea.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, Boolean.TRUE);
         chatArea.setFont(MsnTheme.FONT_MAIN);
-
-        // Add Hyperlink Listener for file downloads
+        
         chatArea.addHyperlinkListener(e -> {
             if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
-                String desc = e.getDescription(); // e.g. "download:12345_file.png"
+                String desc = e.getDescription();
                 if (desc.startsWith("download:")) {
                     String fileId = desc.substring("download:".length());
-                    int confirm = JOptionPane.showConfirmDialog(this,
-                            "Voulez-vous télécharger le fichier " + fileId + " ?", "Téléchargement",
-                            JOptionPane.YES_NO_OPTION);
-                    if (confirm == JOptionPane.YES_OPTION) {
-                        client.sendMessage("/download " + fileId);
-                    }
+                    int confirm = JOptionPane.showConfirmDialog(this, "Télécharger " + fileId + " ?", "Téléchargement", JOptionPane.YES_NO_OPTION);
+                    if (confirm == JOptionPane.YES_OPTION) client.sendMessage("/download " + fileId);
                 }
             }
         });
 
-        chatArea.setDocument(channelDocs.get("general")); // Set initial doc
-
+        chatArea.setDocument(channelDocs.get("general"));
         JScrollPane scrollPane = new JScrollPane(chatArea);
         scrollPane.setBorder(BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR));
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        chatPanel.add(scrollPane, BorderLayout.CENTER);
+        centerPanel.add(scrollPane, BorderLayout.CENTER);
 
         // Input Area
-        JPanel inputPanel = new JPanel(new BorderLayout());
+        inputPanel = new JPanel(new BorderLayout());
         inputPanel.setBackground(MsnTheme.BACKGROUND);
         inputPanel.setBorder(new EmptyBorder(5, 0, 0, 0));
         inputPanel.setPreferredSize(new Dimension(0, 85));
 
-        // Toolbar
+        // Toolbar with old buttons
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 0));
         toolbar.setBackground(MsnTheme.BACKGROUND);
 
@@ -665,101 +683,29 @@ public class ChatGUI extends JFrame implements MessageListener {
             JFileChooser chooser = new JFileChooser();
             int res = chooser.showOpenDialog(this);
             if (res == JFileChooser.APPROVE_OPTION) {
-                File f = chooser.getSelectedFile();
-                if (f.length() > 5 * 1024 * 1024) { // 5MB limit
-                    JOptionPane.showMessageDialog(this, "Fichier trop volumineux (max 5MB).");
-                    return;
-                }
                 try {
+                    File f = chooser.getSelectedFile();
                     byte[] data = Files.readAllBytes(f.toPath());
                     String b64 = Base64.getEncoder().encodeToString(data);
-                    // Send: /upload <filename> <b64>
-                    // Remove spaces from filename to be safe
                     String safeName = f.getName().replace(" ", "_");
                     client.sendMessage("/upload " + safeName + " " + b64);
                     appendToChat("Envoi du fichier " + safeName + "...", Color.GRAY);
                 } catch (Exception ex) {
-                    ex.printStackTrace();
                     JOptionPane.showMessageDialog(this, "Erreur lors de la lecture du fichier.");
                 }
             }
         });
         toolbar.add(fileBtn);
 
-        JButton callBtn = new JButton("Tel");
-        callBtn.setFont(new Font("Arial", Font.BOLD, 12));
-        callBtn.setToolTipText("Appeler un utilisateur (Privé)");
-        styleToolbarButton(callBtn);
-        // Green phone icon would be better
-        callBtn.setForeground(new Color(0, 128, 0));
-        callBtn.addActionListener(e -> {
-            if (inCall) {
-                // Hangup
-                client.sendMessage("/hangup");
-                endCall();
-                callBtn.setText("Tel");
-                callBtn.setForeground(new Color(0, 128, 0));
-            } else {
-                // Initiating call
-                // Only allowed in private chat or ask for username
-                String target = null;
-                if (isPrivateMode) {
-                    // deduce target from private room name? !PRIVATE_user1_user2
-                    // room name: !PRIVATE_Alice_Bob. If I am Alice, target is Bob.
-                    String room = currentChannel;
-                    if (room.startsWith("!PRIVATE_")) {
-                        String[] p = room.substring(9).split("_");
-                        if (p.length >= 2) {
-                            if (p[0].equalsIgnoreCase(username))
-                                target = p[1];
-                            else
-                                target = p[0];
-                        }
-                    }
-                }
-
-                if (target == null) {
-                    target = JOptionPane.showInputDialog(this, "Entrez le nom de l'utilisateur à appeler :");
-                }
-
-                if (target != null && !target.trim().isEmpty()) {
-                    client.sendMessage("/call " + target);
-                    callBtn.setText("Fin");
-                    callBtn.setForeground(Color.RED);
-                }
-            }
-        });
-        toolbar.add(callBtn);
+        toolbar.add(fileBtn);
 
         inputPanel.add(toolbar, BorderLayout.NORTH);
 
         inputField = new JTextField();
-        inputField.setBackground(Color.WHITE);
-        inputField.setForeground(MsnTheme.TEXT_NORMAL);
-        inputField.setFont(MsnTheme.FONT_MAIN);
-        inputField.setBorder(new CompoundBorder(
+        inputField.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(MsnTheme.BORDER_COLOR),
                 new EmptyBorder(5, 5, 5, 5)));
         inputField.addActionListener(e -> sendMessage());
-        inputField.addKeyListener(new java.awt.event.KeyAdapter() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent e) {
-                int code = e.getKeyCode();
-                // Ignore modifiers (Shift, Ctrl, Alt) and Function/Action keys (F1-F12, Arrows)
-                if (code == java.awt.event.KeyEvent.VK_SHIFT ||
-                        code == java.awt.event.KeyEvent.VK_CONTROL ||
-                        code == java.awt.event.KeyEvent.VK_ALT ||
-                        code == java.awt.event.KeyEvent.VK_ALT_GRAPH ||
-                        code == java.awt.event.KeyEvent.VK_META ||
-                        code == java.awt.event.KeyEvent.VK_CAPS_LOCK ||
-                        code == java.awt.event.KeyEvent.VK_ENTER ||
-                        e.isActionKey()) {
-                    return;
-                }
-                soundManager.playKey(code == java.awt.event.KeyEvent.VK_SPACE);
-            }
-        });
-
         inputPanel.add(inputField, BorderLayout.CENTER);
 
         JButton sendBtn = new WindowsXPButton("Envoyer");
@@ -773,9 +719,38 @@ public class ChatGUI extends JFrame implements MessageListener {
 
         inputPanel.add(sendPanel, BorderLayout.EAST);
 
-        chatPanel.add(inputPanel, BorderLayout.SOUTH);
+        centerPanel.add(inputPanel, BorderLayout.SOUTH);
+        chatPanel.add(centerPanel, BorderLayout.CENTER);
+
+        // Bottom Banner
+        JLabel banner = new JLabel("Cliquez ici pour de nouveaux émoticônes et packs de thèmes de Blue Mountain");
+        banner.setFont(new Font("Tahoma", Font.PLAIN, 10));
+        banner.setForeground(Color.DARK_GRAY);
+        banner.setHorizontalAlignment(SwingConstants.CENTER);
+        banner.setBorder(new EmptyBorder(5, 0, 5, 0));
+        chatPanel.add(banner, BorderLayout.SOUTH);
 
         parent.add(chatPanel, BorderLayout.CENTER);
+    }
+
+    private JLabel createActionIcon(String text, String tooltip) {
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("Tahoma", Font.PLAIN, 11));
+        label.setForeground(new Color(0, 51, 153));
+        label.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        label.setToolTipText(tooltip);
+        label.setHorizontalAlignment(SwingConstants.CENTER);
+        label.setVerticalTextPosition(SwingConstants.BOTTOM);
+        label.setHorizontalTextPosition(SwingConstants.CENTER);
+        return label;
+    }
+
+    private JLabel createSmallLink(String text) {
+        JLabel l = new JLabel("<html><u>" + text + "</u></html>");
+        l.setFont(new Font("Tahoma", Font.PLAIN, 10));
+        l.setForeground(Color.BLUE);
+        l.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        return l;
     }
 
     // Style helper for toolbar buttons
@@ -799,10 +774,14 @@ public class ChatGUI extends JFrame implements MessageListener {
     }
 
     private void createUserList() {
-        JPanel userPanel = new JPanel(new BorderLayout());
+        rightSidebarLayout = new CardLayout();
+        rightSidebarContainer = new JPanel(rightSidebarLayout);
+        rightSidebarContainer.setPreferredSize(new Dimension(150, 0));
+        rightSidebarContainer.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, MsnTheme.BORDER_COLOR));
+
+        // Card 1: User List (Public)
+        userPanel = new JPanel(new BorderLayout());
         userPanel.setBackground(MsnTheme.SIDEBAR);
-        userPanel.setPreferredSize(new Dimension(150, 0));
-        userPanel.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, MsnTheme.BORDER_COLOR));
 
         JLabel title = new JLabel(" Participants");
         title.setFont(MsnTheme.FONT_BOLD);
@@ -818,10 +797,64 @@ public class ChatGUI extends JFrame implements MessageListener {
         userList.setFont(MsnTheme.FONT_MAIN);
 
         attachUserListContextMenu(userList);
-
         userPanel.add(new JScrollPane(userList), BorderLayout.CENTER);
 
-        add(userPanel, BorderLayout.EAST);
+        // Card 2: Avatar Sidebar (Private)
+        avatarSidebar = new JPanel();
+        avatarSidebar.setLayout(new BoxLayout(avatarSidebar, BoxLayout.Y_AXIS));
+        avatarSidebar.setBackground(MsnTheme.SIDEBAR);
+        avatarSidebar.setBorder(new EmptyBorder(10, 5, 10, 5));
+        
+        // Partner Section
+        JPanel pTop = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        pTop.setOpaque(false);
+        partnerAvatarLabelFrame = new JLabel();
+        pTop.add(new MsnPhotoFrame(partnerAvatarLabelFrame, 96));
+        
+        partnerMoodLabel = new JLabel("<html><center><b>...</b><br><font color='gray'>...</font></center></html>");
+        partnerMoodLabel.setFont(new Font("Tahoma", Font.PLAIN, 11));
+        partnerMoodLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        partnerMoodLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        
+        sidebarCallBtn = new WindowsXPButton("Appeler");
+        sidebarCallBtn.setMaximumSize(new Dimension(100, 30));
+        sidebarCallBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        sidebarCallBtn.addActionListener(e -> {
+            if (inCall) {
+                client.sendMessage("/hangup");
+                endCall();
+            } else {
+                if (isPrivateMode && currentChannel != null) {
+                    client.sendMessage("/call " + currentChannel);
+                    sidebarCallBtn.setText("Fin d'appel");
+                    sidebarCallBtn.setForeground(Color.RED);
+                }
+            }
+        });
+
+        // My Section
+        JPanel pBottom = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        pBottom.setOpaque(false);
+        myAvatarLabel = new JLabel();
+        pBottom.add(new MsnPhotoFrame(myAvatarLabel, 96));
+        
+        myMoodLabel = new JLabel("<html><center><b>" + username + "</b><br><font color='gray'>...</font></center></html>");
+        myMoodLabel.setFont(new Font("Tahoma", Font.PLAIN, 11));
+        myMoodLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        myMoodLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+        avatarSidebar.add(pTop);
+        avatarSidebar.add(partnerMoodLabel);
+        avatarSidebar.add(Box.createVerticalStrut(5));
+        avatarSidebar.add(sidebarCallBtn);
+        avatarSidebar.add(Box.createVerticalGlue());
+        avatarSidebar.add(myMoodLabel);
+        avatarSidebar.add(pBottom);
+
+        rightSidebarContainer.add(userPanel, "LIST");
+        rightSidebarContainer.add(avatarSidebar, "AVATARS");
+
+        add(rightSidebarContainer, BorderLayout.EAST);
     }
 
     private class UserListRenderer extends DefaultListCellRenderer {
@@ -834,7 +867,7 @@ public class ChatGUI extends JFrame implements MessageListener {
 
                 // Avatar icon
                 if (userAvatars.containsKey(user)) {
-                    Image img = userAvatars.get(user).getScaledInstance(20, 20, Image.SCALE_SMOOTH);
+                    Image img = userAvatars.get(user).getScaledInstance(15, 15, Image.SCALE_SMOOTH);
                     label.setIcon(new ImageIcon(img));
                 } else {
                     label.setIcon(null);
@@ -939,7 +972,12 @@ public class ChatGUI extends JFrame implements MessageListener {
 
             soundManager.playMessageSent();
 
-            if (!text.startsWith("/")) {
+            if (text.startsWith("/setmsg ")) {
+            ownStatusMessage = text.substring(8);
+            if (isPrivateMode) updateMoodLabels(currentChannel);
+        }
+
+        if (!text.startsWith("/")) {
                 // appendToChat("[" + username + "]: " + payload.toString(),
                 // getUniqueColor(username));
             }
@@ -1379,12 +1417,15 @@ public class ChatGUI extends JFrame implements MessageListener {
 
             if (message.startsWith("LOGIN_SUCCESS")) {
                 appendToChat("Système : Connexion réussie !", Color.GRAY);
-                // Check if avatar info is present
                 String[] parts = message.split(" ");
                 if (parts.length >= 3 && !parts[2].equals("null")) {
-                    // Request avatar data to display it
-                    // Or wait, server just sent the filename. Client doesn't have the file yet.
                     client.sendMessage("/getavatar " + username);
+                }
+                if (parts.length >= 4) {
+                    try {
+                        byte[] decoded = Base64.getDecoder().decode(parts[3]);
+                        ownStatusMessage = new String(decoded);
+                    } catch (Exception e) {}
                 }
                 return;
             }
@@ -1799,10 +1840,17 @@ public class ChatGUI extends JFrame implements MessageListener {
                             callWindow.setPartnerAvatar(rawImg);
                         }
 
-                        // If this is the current private chat partner, update large avatar
-                        if (isPrivateMode && user.equals(currentChannel) && partnerAvatarLabel != null) {
-                            Image scaled = rawImg.getScaledInstance(80, 80, Image.SCALE_SMOOTH);
-                            partnerAvatarLabel.setIcon(new ImageIcon(scaled));
+                        // Update side avatars in private mode
+                        if (isPrivateMode) {
+                            if (user.equals(currentChannel)) {
+                                if (partnerAvatarLabelFrame != null) {
+                                    partnerAvatarLabelFrame.setIcon(new ImageIcon(rawImg.getScaledInstance(96, 96, Image.SCALE_SMOOTH)));
+                                }
+                            } else if (user.equals(username)) {
+                                if (myAvatarLabel != null) {
+                                    myAvatarLabel.setIcon(new ImageIcon(rawImg.getScaledInstance(96, 96, Image.SCALE_SMOOTH)));
+                                }
+                            }
                         }
 
                         // Trigger repaint of lists
@@ -1998,6 +2046,28 @@ public class ChatGUI extends JFrame implements MessageListener {
         }
     }
 
+    // MSN Photo Frame (The Polaroid look)
+    class MsnPhotoFrame extends JPanel {
+        private JLabel imgLabel;
+        private int size;
+
+        public MsnPhotoFrame(JLabel label, int size) {
+            this.imgLabel = label;
+            this.size = size;
+            setLayout(new BorderLayout());
+            setBackground(Color.WHITE);
+            setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(180, 180, 180)),
+                BorderFactory.createEmptyBorder(5, 5, 20, 5) // Bottom space for name/info
+            ));
+            setPreferredSize(new Dimension(size + 10, size + 25));
+            add(label, BorderLayout.CENTER);
+            
+            // Subtle "rounded" corners effect with border? 
+            // XP era didn't have much rounding, mostly sharp but soft gradients.
+        }
+    }
+
     public static void main(String[] args) {
         System.out.println("Launching ChatGUI...");
         SwingUtilities.invokeLater(() -> {
@@ -2031,6 +2101,10 @@ public class ChatGUI extends JFrame implements MessageListener {
                 String status = data.length > 1 ? data[1] : "offline";
                 String msg = data.length > 2 ? data[2] : "";
 
+                // Update maps for real-time mood/status tracking
+                channelUserStatus.put(name, status);
+                channelUserMsg.put(name, msg);
+
                 if (status.equals("pending")) {
                     pending.add(new Friend(name, "pending", msg));
                 } else if (!status.equals("offline")) {
@@ -2062,6 +2136,7 @@ public class ChatGUI extends JFrame implements MessageListener {
                 friendsListModel.addElement(f);
 
             friendsList.repaint(); // Force repaint just in case
+            if (isPrivateMode) updateMoodLabels(currentChannel);
         });
     }
 
