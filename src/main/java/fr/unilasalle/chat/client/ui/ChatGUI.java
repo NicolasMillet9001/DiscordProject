@@ -700,14 +700,6 @@ public class ChatGUI extends JFrame implements MessageListener {
         centerPanel.add(inputPanel, BorderLayout.SOUTH);
         chatPanel.add(centerPanel, BorderLayout.CENTER);
 
-        // Bottom Banner
-        JLabel banner = new JLabel("Cliquez ici pour de nouveaux émoticônes et packs de thèmes de Blue Mountain");
-        banner.setFont(new Font("Tahoma", Font.PLAIN, 10));
-        banner.setForeground(Color.DARK_GRAY);
-        banner.setHorizontalAlignment(SwingConstants.CENTER);
-        banner.setBorder(new EmptyBorder(5, 0, 5, 0));
-        chatPanel.add(banner, BorderLayout.SOUTH);
-
         parent.add(chatPanel, BorderLayout.CENTER);
     }
 
